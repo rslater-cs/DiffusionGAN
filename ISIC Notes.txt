@@ -1,0 +1,12 @@
+ISIC Notes:
+Types of labels:
+Binary Mask of skin cancer 												[x]
+Binary Mask as superpixel 												[x]
+Binary Mask of globules and streaks											[x]
+Benign or maliganat classification (0-1)										[x]
+Binary Mask of pigment network, negative network, millia like cyst and streaks as superpixel	[x]
+Melanoma, seborrheic keratosis or none classification (0-2)							[x]
+Binary Mask of pigment network, negative network, millia like cyst and streaks			[x]
+Disease classification (melanoma, nv?, bcc?, akiec?, bkl?, df?, vasc?)(0-6)				[x]
+Disease classification (melanoma, nv?, bcc?, ak?, bkl?, df?, vasc?, scc?, unk?)(0-8)		[x]
+Combination of sex, age, site, diagnosis and benign/malignant						[x]					
