@@ -37,16 +37,14 @@ class ISIC(Dataset):
     def expand_labels(self):
         labels = dict.fromkeys(self.full_labelset, value=np.nan)
         return pd.DataFrame(labels)
-
-    def __len__(self):
-        return len(self.labels)
     
     def __getitem__(self, index):
         image_name = str(self.image_names[index])
         image = cv2.imread(image_name)
         return image, self.labels.iloc[index], self.image_names[index]
     
-class ISIC_2020(ISIC):
+    
+class ISIC_2020(Dataset):
     def __init__(self, root: Path, transform: nn.Module = default_transform) -> None:
         super().__init__()
         self.disease_encoding = {'melanoma':'MEL', 'nevus':'NV', 'unknown':'UNK', 
@@ -89,9 +87,17 @@ class ISIC_2020(ISIC):
         full_labels = pd.DataFrame(full_labels)
 
         return full_labels
+    
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, index):
+        image_name = str(self.image_names[index])
+        image = cv2.imread(image_name)
+        return image, self.labels.iloc[index], self.image_names[index]
 
 
-class ISIC_2019(ISIC):
+class ISIC_2019(Dataset):
 
     def __init__(self, root: Path, transform: nn.Module = default_transform) -> None:
         super().__init__()
@@ -143,7 +149,16 @@ class ISIC_2019(ISIC):
 
         return full_labels
     
-class ISIC_2018(ISIC):
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, index):
+        image_name = str(self.image_names[index])
+        image = cv2.imread(image_name)
+        return image, self.labels.iloc[index], self.image_names[index]
+    
+    
+class ISIC_2018(Dataset):
     def __init__(self, root: Path, split: str = 'train', transform: nn.Module = default_transform) -> None:
         super().__init__()
         self.splits = ['train', 'valid', 'test']
@@ -191,8 +206,17 @@ class ISIC_2018(ISIC):
         full_labels = pd.DataFrame(full_labels)
 
         return full_labels
+    
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, index):
+        image_name = str(self.image_names[index])
+        image = cv2.imread(image_name)
+        return image, self.labels.iloc[index], self.image_names[index]
+    
 
-class ISIC_2017(ISIC):
+class ISIC_2017(Dataset):
     def __init__(self, root: Path, split: str = 'train', transform: nn.Module = default_transform) -> None:
         super().__init__()
         self.splits = ['train', 'valid', 'test']
@@ -236,8 +260,17 @@ class ISIC_2017(ISIC):
         full_labels = pd.DataFrame(full_labels)
 
         return full_labels
+    
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, index):
+        image_name = str(self.image_names[index])
+        image = cv2.imread(image_name)
+        return image, self.labels.iloc[index], self.image_names[index]
+    
 
-class ISIC_2016(ISIC):
+class ISIC_2016(Dataset):
     def __init__(self, root: Path, split: str = 'train', transform: nn.Module = default_transform) -> None:
         super().__init__()
         self.splits = ['train', 'test']
@@ -277,3 +310,11 @@ class ISIC_2016(ISIC):
         full_labels = pd.DataFrame(full_labels)
 
         return full_labels
+    
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, index):
+        image_name = str(self.image_names[index])
+        image = cv2.imread(image_name)
+        return image, self.labels.iloc[index], self.image_names[index]
