@@ -10,7 +10,7 @@ import cv2
 import shutil
 import os
 
-base = Path('D:\\ISIC_Dataset\\NetworkDatasets\\DiseaseClassification')
+base = Path('E:\\Programming\\Datasets\\DiseaseClassification')
 
 all_labels = ['image'] + DISEASES + METADATA + ['benign_malignant']
 
@@ -73,7 +73,7 @@ def merge_dataset(dataset, new_dataset, image_mapping, image_key):
             image_hashes[image_hash] = image_key
             image_path = labels['image']
             labels = labels.drop('image', axis=0)
-            labels['image'] = Path(f'D:\\ISIC_Dataset\\NetworkDatasets\\All_ISIC\\ISIC_Merged_{image_key}.jpg')
+            labels['image'] = Path(f'E:\\Programming\\Datasets\\All_ISIC\\ISIC_Merged_{image_key}.jpg')
             new_dataset = add_row(new_dataset, labels)
 
             shutil.copy(image_path, labels['image'])
@@ -133,9 +133,9 @@ if __name__ == '__main__':
 
     image_key = 0
 
-    if os.path.exists(f'D:\\ISIC_Dataset\\NetworkDatasets\\All_ISIC\\'):
-        shutil.rmtree(Path(f'D:\\ISIC_Dataset\\NetworkDatasets\\All_ISIC\\'))
-    os.mkdir(f'D:\\ISIC_Dataset\\NetworkDatasets\\All_ISIC\\')
+    if os.path.exists(f'E:\\Programming\\Datasets\\All_ISIC\\'):
+        shutil.rmtree(Path(f'E:\\Programming\\Datasets\\All_ISIC\\'))
+    os.mkdir(f'E:\\Programming\\Datasets\\All_ISIC\\')
 
     for dataset in datasets:
         print(dataset.__class__)
