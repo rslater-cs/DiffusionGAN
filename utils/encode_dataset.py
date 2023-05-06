@@ -9,23 +9,128 @@ anatom_sites = dict.fromkeys(['head/neck', 'upper extremity', 'lower extremity',
 for i, key in enumerate(anatom_sites.keys()):
     anatom_sites[key] = i
 
-base_path = Path('Z:\ISIC_Combined')
+def disease_to_int(diseases: pd.Series):
+    diseases = diseases.drop('image')
+    attn = diseases.sum()
+
+    if attn == 0:
+        return 0, 0
+
+    diseases = diseases.values
+    # diseases: np.ndarray = diseases.to_numpy(dtype=np.int8)
+    index = diseases.nonzero()
+
+    return index[0][0], 1
+
+def sex_to_int(sex):
+    if sex != 'male' and sex != 'female':
+        return 0, 0
+    
+    value = 0 if sex == 'male' else 1
+
+    return value, 1
+
+def age_to_int(age):
+    if math.isnan(age):
+        return 0, 0
+    
+    value = int(age//5)
+
+    return value, 1
+
+def anatom_site_to_int(site):
+    if site.__class__ != str and math.isnan(site):
+        return 0, 0
+    
+    value = anatom_sites[site]
+
+    return value, 1
+
+def benign_malignant_to_int(bm):
+    if math.isnan(bm):
+        return 0, 0
+    
+    return int(bm), 1
+
+base_path = Path('F:\\ISIC_Dataset\\ISIC_Combined')
 
 metadata_path = base_path / 'metadata.csv'
 disease_path = base_path / 'diseases.csv'
 
 metadata = pd.read_csv(metadata_path)
+disease_data = pd.read_csv(disease_path)
 
-encoded_metadata = dict.fromkeys(metadata.columns)
-for key in encoded_metadata.keys():
-    encoded_metadata[key] = np.empty((len(metadata,)))
+encoded_data = dict.fromkeys(metadata.columns.to_list() + ['disease'])
+for key in encoded_data.keys():
+    encoded_data[key] = []
 
-encoded_metadata['image'] = metadata['image']
-for i in range(len(metadata)):
-    encoded_metadata['sex'][i] = 0 if metadata['sex'].iloc[i] == 'male' else 1
-    encoded_metadata['age'][i] = int(metadata['age'].iloc[i]//5) if not math.isnan(metadata['age'].iloc[i]) else metadata['age'].iloc[i]
-    encoded_metadata['anatom_site'][i] = anatom_sites.get(metadata['anatom_site'].iloc[i], np.nan)
-    encoded_metadata['benign_malignant'][i] = metadata['benign_malignant'].iloc[i]
+attention_data = dict.fromkeys(['image','0','1','2','3','4'])
+for key in attention_data.keys():
+    attention_data[key] = []
 
-encoded_metadata = pd.DataFrame(encoded_metadata)
-encoded_metadata.to_csv('./e_metadata.csv', index=False)
+for disease_row, metadata_row in zip(disease_data.iterrows(), metadata.iterrows()):
+    i = disease_row[0]
+    disease_row = disease_row[1]
+    metadata_row = metadata_row[1]
+
+    disease, attn1 = disease_to_int(disease_row)
+    sex, attn2 = sex_to_int(metadata_row['sex'])
+    age, attn3 = age_to_int(metadata_row['age'])
+    site, attn4 = anatom_site_to_int(metadata_row['anatom_site'])
+    bm, attn5 = benign_malignant_to_int(metadata_row['benign_malignant'])
+
+    attention_data['image'].append(metadata_row['image'])
+    attention_data['0'].append(attn1)
+    attention_data['1'].append(attn2)
+    attention_data['2'].append(attn3)
+    attention_data['3'].append(attn4)
+    attention_data['4'].append(attn5)
+
+    encoded_data['image'].append(metadata_row['image'])
+    encoded_data['disease'].append(disease)
+    encoded_data['sex'].append(sex)
+    encoded_data['age'].append(age)
+    encoded_data['anatom_site'].append(site)
+    encoded_data['benign_malignant'].append(bm)
+
+encoded_data = pd.DataFrame(encoded_data)
+encoded_data.to_csv('all_encoded.csv', index=False)
+
+attention_data = pd.DataFrame(attention_data)
+attention_data.to_csv('all_attention.csv', index=False)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# encoded_metadata = dict.fromkeys(metadata.columns)
+# for key in encoded_metadata.keys():
+#     encoded_metadata[key] = np.empty((len(metadata,)))
+
+# encoded_metadata['image'] = metadata['image']
+# for i in range(len(metadata)):
+#     encoded_metadata['sex'][i] = 0 if metadata['sex'].iloc[i] == 'male' else 1
+#     encoded_metadata['age'][i] = int(metadata['age'].iloc[i]//5) if not math.isnan(metadata['age'].iloc[i]) else metadata['age'].iloc[i]
+#     encoded_metadata['anatom_site'][i] = anatom_sites.get(metadata['anatom_site'].iloc[i], np.nan)
+#     encoded_metadata['benign_malignant'][i] = metadata['benign_malignant'].iloc[i]
+
+# encoded_metadata = pd.DataFrame(encoded_metadata)
+# encoded_metadata.to_csv('./e_metadata.csv', index=False)
