@@ -73,7 +73,7 @@ def merge_dataset(dataset, new_dataset, image_mapping, image_key):
             image_hashes[image_hash] = image_key
             image_path = labels['image']
             labels = labels.drop('image', axis=0)
-            labels['image'] = Path(f'E:\\Programming\\Datasets\\All_ISIC\\ISIC_Merged_{image_key}.jpg')
+            labels['image'] = Path(f'ISIC_Merged_{image_key}.jpg')
             new_dataset = add_row(new_dataset, labels)
 
             shutil.copy(image_path, labels['image'])

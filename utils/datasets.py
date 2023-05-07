@@ -327,99 +327,30 @@ resize_transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
 ])
     
-class Metadata(Dataset):
-    anatom_sites = dict.fromkeys(['head/neck', 'upper extremity', 'lower extremity', 'torso', 'palms/soles',
-                    'oral/genital', 'anterior torso', 'posterior torso', 'lateral torso'], 0)
-
-    def __init__(self, root: Path, transform: transforms.Compose = resize_transform) -> None:
-        super().__init__()
-        self.transform = transform
-
-        metadata_path = root / 'metadata.csv'
-        metadata = pd.read_csv(metadata_path)
-
-        disease_path = root / 'diseases.csv'
-        diseases = pd.read_csv(disease_path)
-
-        image_path = root / 'images'
-
-        self.image_paths = diseases['image']
-        for i in range(len(self.image_paths)):
-            self.image_paths.iloc[i] = Path(image_path / self.image_paths.iloc[i])
-
-        self.diseases = diseases.drop('image', axis=1)
-        self.metadata = metadata.drop('image', axis=1)
-
-        for i, site in enumerate(self.anatom_sites.keys()):
-            self.anatom_sites[site] = i
-
-    def __len__(self):
-        return len(self.image_paths)
-    
-    def __getitem__(self, index):
-        image = Image.open(self.image_paths[index])
-        image = self.transform(image)
-
-        label_attention = torch.ones((5,))
-
-        disease = self.diseases.iloc[index]
-        disease = torch.tensor(disease.values)
-
-        if disease.sum() == 0.0:
-            label_attention[0] = 0
-        else:
-            disease = disease.nonzero().item()
-
-        sex_label = self.metadata['sex'].iloc[index]
-        age_label = self.metadata['age'].iloc[index]
-        site_label = self.metadata['anatom_site'].iloc[index]
-        bm_label = self.metadata['benign_malignant'].iloc[index]
-
-        sex = 0
-        if sex_label == np.nan:
-            label_attention[1] = 0
-        else:
-            sex = 0 if sex_label == 'male' else 1 
-
-        age = 0
-        if age_label == np.nan:
-            label_attention[2] = 0
-        else:
-            age = int(age_label//5)
-
-        site = 0
-        if site_label == np.nan:
-            label_attention[3] = 0
-        else:
-            site = self.anatom_sites[site_label]
-
-        bm = 0
-        if bm_label == np.nan:
-            label_attention[4] = 0
-        else:
-            bm = int(bm_label)
-
-        return image, disease, sex, age, site, bm, label_attention
-    
 class Classification(Dataset):
     def __init__(self, root: Path, transform: transforms.Compose = resize_transform) -> None:
         super().__init__()
         self.transform = transform
 
-        disease_path = root / 'diseases.csv'
-        diseases = pd.read_csv(disease_path)
+        data_path = root / 'all_encoded.csv'
+        attn_path = root / 'all_attention.csv'
 
-        image_path = root / 'images'
+        labels = pd.read_csv(data_path)
+        attn = pd.read_csv(attn_path)
 
-        self.image_paths = diseases['image']
-        for i in range(len(self.image_paths)):
-            self.image_paths.iloc[i] = Path(image_path / self.image_paths.iloc[i])
+        image_names = labels['image']
+        disease_labels = labels['disease']
+        disease_attn = attn['0']
 
-        self.diseases = diseases.drop('image', axis=1)
+        samples = disease_attn == 1
 
-        indexes = self.diseases.sum(axis=1) != 0
-        self.diseases = self.diseases[indexes]
-        self.image_paths = self.image_paths[indexes]
+        image_names = image_names[samples]
+
+        for i in range(len(image_names)):
+            image_names.iloc[i] = Path(root / 'images' / image_names.iloc[i])
+        
+        self.image_paths = image_names
+        self.disease_labels = disease_labels[samples]
 
     def __len__(self):
         return len(self.image_paths)
@@ -428,12 +359,42 @@ class Classification(Dataset):
         image = Image.open(self.image_paths[index])
         image = self.transform(image)
 
-        disease = self.diseases.iloc[index]
-        disease = torch.tensor(disease.values)
-
-        disease = disease.nonzero().item()   
+        disease = self.disease_labels.iloc[index]
 
         return image, disease     
+
+class Metadata(Dataset):
+    def __init__(self, root: Path, transform: transforms.Compose = resize_transform) -> None:
+        super().__init__()
+        self.transform = transform
+
+        data_path = root / 'all_encoded.csv'
+        attn_path = root / 'all_attention.csv'
+
+        self.labels = pd.read_csv(data_path)
+        self.attn = pd.read_csv(attn_path)
+        self.attn = self.attn.drop('image', axis=1)
+
+        image_names = self.labels['image']
+        for i in range(len(image_names)):
+            image_names.iloc[i] = root / 'images' / image_names.iloc[i]
+
+        self.image_paths = image_names
+        
+    def __len__(self):
+        return len(self.image_paths)
+    
+    def __getitem__(self, index):
+        image = Image.open(self.image_paths.iloc[index])
+        image = self.transform(image)
+
+        return (image, 
+                self.labels['disease'].iloc[index], 
+                self.labels['sex'].iloc[index], 
+                self.labels['age'].iloc[index], 
+                self.labels['anatom_site'].iloc[index],
+                self.labels['benign_malignant'].iloc[index],
+                torch.tensor(self.attn.iloc[index].values))
 
 
 
