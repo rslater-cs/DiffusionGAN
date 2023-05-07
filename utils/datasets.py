@@ -31,6 +31,7 @@ def zero_disease(labels: pd.DataFrame, label_length: int):
         labels[disease] = np.zeros((label_length,))
     return labels
 
+# The ISIC datasets are the raw values, this was only used for dataset merging. Not to be used for training
 class ISIC(Dataset):
     def __init__(self) -> None:
         super().__init__()
@@ -327,6 +328,7 @@ resize_transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
 ])
     
+# Classification dataset and metdata dataset for classification and dgan systems
 class Classification(Dataset):
     def __init__(self, root: Path, transform: transforms.Compose = resize_transform) -> None:
         super().__init__()
