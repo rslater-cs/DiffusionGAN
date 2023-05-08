@@ -21,7 +21,7 @@ class MetadataClassifier(nn.Module):
 
         self.backbone = models.convnext_tiny(weights=models.ConvNeXt_Tiny_Weights, dropout=dropout)
 
-        total_output_length = 46
+        total_output_length = 42
 
         self.backbone.classifier = nn.Sequential(
             nn.Flatten(1),
@@ -33,7 +33,7 @@ class MetadataClassifier(nn.Module):
         # output: B 46
         x = self.backbone(x)
 
-        disease, sex, age, site, mb = x[:,:14], x[:,14:16], x[:,16:35], x[:,35:44], x[:,44:]
+        disease, sex, age, site, mb = x[:,:10], x[:,10:12], x[:,12:31], x[:,31:40], x[:,40:]
         
         return disease, sex, age, site, mb
     

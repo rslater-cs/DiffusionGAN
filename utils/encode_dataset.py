@@ -59,6 +59,10 @@ disease_path = base_path / 'diseases.csv'
 
 metadata = pd.read_csv(metadata_path)
 disease_data = pd.read_csv(disease_path)
+disease_data = disease_data.drop('LK', axis=1)
+disease_data = disease_data.drop('SL', axis=1)
+disease_data = disease_data.drop('CAM', axis=1)
+disease_data = disease_data.drop('AMP', axis=1)
 
 encoded_data = dict.fromkeys(metadata.columns.to_list() + ['disease'])
 for key in encoded_data.keys():
@@ -93,10 +97,16 @@ for disease_row, metadata_row in zip(disease_data.iterrows(), metadata.iterrows(
     encoded_data['anatom_site'].append(site)
     encoded_data['benign_malignant'].append(bm)
 
+
 encoded_data = pd.DataFrame(encoded_data)
-encoded_data.to_csv('all_encoded.csv', index=False)
 
 attention_data = pd.DataFrame(attention_data)
+
+samples = attention_data.sum(axis=1) > 0
+encoded_data = encoded_data[samples]
+attention_data = attention_data[samples]
+
+encoded_data.to_csv('all_encoded.csv', index=False)
 attention_data.to_csv('all_attention.csv', index=False)
 
 
