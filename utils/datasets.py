@@ -396,7 +396,7 @@ class Metadata(Dataset):
                 self.labels['age'].iloc[index], 
                 self.labels['anatom_site'].iloc[index],
                 self.labels['benign_malignant'].iloc[index],
-                torch.tensor(self.attn.iloc[index].values))
+                torch.tensor(self.attn.iloc[index].values).type(torch.FloatTensor))
 
 
 

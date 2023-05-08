@@ -24,7 +24,8 @@ class MetadataClassifier(nn.Module):
         total_output_length = 46
 
         self.backbone.classifier = nn.Sequential(
-            nn.Dropout(dropout),
+            nn.Flatten(1),
+            nn.LayerNorm((768,)),
             nn.Linear(768, total_output_length)
         )
 
@@ -32,7 +33,7 @@ class MetadataClassifier(nn.Module):
         # output: B 46
         x = self.backbone(x)
 
-        disease, sex, age, site, mb = x[:14], x[14:16], x[16:35], x[35:44], x[44:]
+        disease, sex, age, site, mb = x[:,:14], x[:,14:16], x[:,16:35], x[:,35:44], x[:,44:]
         
         return disease, sex, age, site, mb
     
@@ -42,11 +43,11 @@ class MetadataTraining(pl.LightningModule):
         super().__init__()
 
         self.classifier = MetadataClassifier(dropout)
-        self.loss_func = nn.CrossEntropyLoss()
+        self.loss_func = nn.CrossEntropyLoss(reduce=False)
 
         self.lr = lr
 
-    def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
+    def forward_pass(self, batch, batch_idx):
         x, labels, attn_mask = batch[0], batch[1:6], batch[6]
 
         B = x.shape[0]
@@ -61,16 +62,27 @@ class MetadataTraining(pl.LightningModule):
         for i in range(len(outputs)):
             losses[i] = self.loss_func(outputs[i], labels[i])
 
-        # losses shape = 5 B, attn mask shape = B 5
-        loss = losses.dot(attn_mask)
-        loss = loss / attn_mask.sum()
-        print(loss.shape)
-        # target shape: B
+        losses = losses.transpose(dim0=0, dim1=1)
+        
+        losses = losses * attn_mask
+
+        loss = torch.sum(losses) / torch.sum(attn_mask)
+
+        return loss
+
+    def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
+        loss = self.forward_pass(batch, batch_idx)
+
+        self.log("train/loss", loss)
 
         return loss
 
     def validation_step(self, batch, batch_idx) -> STEP_OUTPUT | None:
-        return self.training_step(batch, batch_idx)
+        loss = self.forward_pass(batch, batch_idx)
+
+        self.log("valid/loss", loss)
+
+        return loss
     
     def configure_optimizers(self) -> Any:
         return Adam(self.classifier.parameters(), lr=self.lr)
