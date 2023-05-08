@@ -19,7 +19,7 @@ class MetadataClassifier(nn.Module):
     def __init__(self, dropout=0.5) -> None:
         super().__init__()
 
-        self.backbone = models.convnext_tiny(dropout=dropout)
+        self.backbone = models.convnext_tiny(weights=models.ConvNeXt_Tiny_Weights, dropout=dropout)
 
         total_output_length = 46
 

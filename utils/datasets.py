@@ -382,6 +382,12 @@ class Metadata(Dataset):
             image_names.iloc[i] = root / 'images' / image_names.iloc[i]
 
         self.image_paths = image_names
+
+        samples = self.attn.sum(axis=1) > 0
+        
+        self.image_paths = self.image_paths[samples]
+        self.labels = self.labels[samples]
+        self.attn = self.attn[samples]
         
     def __len__(self):
         return len(self.image_paths)
