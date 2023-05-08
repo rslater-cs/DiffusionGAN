@@ -6,9 +6,9 @@ from torch.optim import Adam
 from torchvision import models
 import lightning as pl
 
-# Classifier with heads for different pieces of metadata: disease, age, sex, site, malig/benin
+# This is no longer used but is good to refer to for knowing different head lengths
 head_lengths = {
-    'disease':14,
+    'disease':10,
     'sex':2,
     'age':19,
     'site':9,
@@ -19,10 +19,13 @@ class MetadataClassifier(nn.Module):
     def __init__(self, dropout=0.5) -> None:
         super().__init__()
 
+        #Using ConvNext tiny as a backbone with pretrained weights (to speed up training)
+
         self.backbone = models.convnext_tiny(weights=models.ConvNeXt_Tiny_Weights, dropout=dropout)
 
         total_output_length = 42
 
+        # output is the total length of all output nodes (disease, age, sex, site e.t.c) which are seperated later on
         self.backbone.classifier = nn.Sequential(
             nn.Flatten(1),
             nn.LayerNorm((768,)),
@@ -30,13 +33,15 @@ class MetadataClassifier(nn.Module):
         )
 
     def forward(self, x: torch.Tensor):
-        # output: B 46
+        # output: B 42
         x = self.backbone(x)
 
+        # seperate the outputs into the correct classes
         disease, sex, age, site, mb = x[:,:10], x[:,10:12], x[:,12:31], x[:,31:40], x[:,40:]
         
         return disease, sex, age, site, mb
     
+# This is a pytorch lightning module, it allows us to define a training loop very simply
 class MetadataTraining(pl.LightningModule):
 
     def __init__(self, dropout: float = 0.5, lr: float = 1e-3) -> None:
@@ -59,13 +64,17 @@ class MetadataTraining(pl.LightningModule):
 
         losses = torch.empty((5, B), device=self.device)
         
+        # Calculate the cross entropy loss for all output heads
         for i in range(len(outputs)):
             losses[i] = self.loss_func(outputs[i], labels[i])
 
+        # change losses from (H, B) to (B, H) shape where H is the number of heads (5)
         losses = losses.transpose(dim0=0, dim1=1)
         
+        # Use attention mask to zero out the heads that do not have a label 
         losses = losses * attn_mask
 
+        # Calculate the mean loss of only the heads that have labels
         loss = torch.sum(losses) / torch.sum(attn_mask)
 
         return loss
@@ -85,6 +94,7 @@ class MetadataTraining(pl.LightningModule):
         return loss
     
     def configure_optimizers(self) -> Any:
+        # Using adam optimiser
         return Adam(self.classifier.parameters(), lr=self.lr)
 
 

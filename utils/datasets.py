@@ -31,6 +31,7 @@ def zero_disease(labels: pd.DataFrame, label_length: int):
         labels[disease] = np.zeros((label_length,))
     return labels
 
+###########################################################################################################################
 # The ISIC datasets are the raw values, this was only used for dataset merging. Not to be used for training
 class ISIC(Dataset):
     def __init__(self) -> None:
@@ -321,6 +322,8 @@ class ISIC_2016(Dataset):
         image = cv2.imread(image_name)
         return image, self.labels.iloc[index], self.image_names[index]
     
+########################################################################################
+    
 resize_transform = transforms.Compose([
     transforms.Resize(224),
     transforms.CenterCrop((224,224)),
@@ -340,6 +343,8 @@ class Classification(Dataset):
         labels = pd.read_csv(data_path)
         attn = pd.read_csv(attn_path)
 
+        # We must remove all rows where a disease label does not exist
+        # We use the attention mask for this function
         image_names = labels['image']
         disease_labels = labels['disease']
         disease_attn = attn['0']
@@ -383,6 +388,8 @@ class Metadata(Dataset):
 
         self.image_paths = image_names
 
+        # Remove all rows where there are no labels at all, this step is now redundant due to 
+        # the revised encoding process
         samples = self.attn.sum(axis=1) > 0
         
         self.image_paths = self.image_paths[samples]

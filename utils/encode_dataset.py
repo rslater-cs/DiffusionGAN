@@ -9,6 +9,7 @@ anatom_sites = dict.fromkeys(['head/neck', 'upper extremity', 'lower extremity',
 for i, key in enumerate(anatom_sites.keys()):
     anatom_sites[key] = i
 
+# disease is converted from one hot encoding to index values as is more efficient for cross entropy
 def disease_to_int(diseases: pd.Series):
     diseases = diseases.drop('image')
     attn = diseases.sum()
@@ -22,6 +23,7 @@ def disease_to_int(diseases: pd.Series):
 
     return index[0][0], 1
 
+# simple conversion
 def sex_to_int(sex):
     if sex != 'male' and sex != 'female':
         return 0, 0
@@ -30,6 +32,8 @@ def sex_to_int(sex):
 
     return value, 1
 
+# divide by 5 to get the node index, using discrete classes will pose issues with new
+# data, possibly should discuss this in a poster?
 def age_to_int(age):
     if math.isnan(age):
         return 0, 0
@@ -38,6 +42,7 @@ def age_to_int(age):
 
     return value, 1
 
+# simple conversion using a dictionary to move from string to int
 def anatom_site_to_int(site):
     if site.__class__ != str and math.isnan(site):
         return 0, 0
@@ -46,6 +51,7 @@ def anatom_site_to_int(site):
 
     return value, 1
 
+# simple conversion
 def benign_malignant_to_int(bm):
     if math.isnan(bm):
         return 0, 0
@@ -57,6 +63,7 @@ base_path = Path('F:\\ISIC_Dataset\\ISIC_Combined')
 metadata_path = base_path / 'metadata.csv'
 disease_path = base_path / 'diseases.csv'
 
+# Load data and drop the lesser represented diseases
 metadata = pd.read_csv(metadata_path)
 disease_data = pd.read_csv(disease_path)
 disease_data = disease_data.drop('LK', axis=1)
@@ -64,6 +71,8 @@ disease_data = disease_data.drop('SL', axis=1)
 disease_data = disease_data.drop('CAM', axis=1)
 disease_data = disease_data.drop('AMP', axis=1)
 
+
+#initialise the labels and attention mask dictionaries
 encoded_data = dict.fromkeys(metadata.columns.to_list() + ['disease'])
 for key in encoded_data.keys():
     encoded_data[key] = []
@@ -72,6 +81,9 @@ attention_data = dict.fromkeys(['image','0','1','2','3','4'])
 for key in attention_data.keys():
     attention_data[key] = []
 
+# Iterate through all disease and metadata, converting each value to a integer and building attention masks for each row
+# Attention masks are used to define which cells have data for each label and which cells don't, important for the metdata classifier and
+# diffusion prompt
 for disease_row, metadata_row in zip(disease_data.iterrows(), metadata.iterrows()):
     i = disease_row[0]
     disease_row = disease_row[1]
@@ -97,7 +109,7 @@ for disease_row, metadata_row in zip(disease_data.iterrows(), metadata.iterrows(
     encoded_data['anatom_site'].append(site)
     encoded_data['benign_malignant'].append(bm)
 
-
+# Save all data 
 encoded_data = pd.DataFrame(encoded_data)
 
 attention_data = pd.DataFrame(attention_data)
