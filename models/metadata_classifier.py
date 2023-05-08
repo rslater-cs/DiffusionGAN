@@ -79,14 +79,14 @@ class MetadataTraining(pl.LightningModule):
 
         return loss
 
-    def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
+    def training_step(self, batch, batch_idx):
         loss = self.forward_pass(batch, batch_idx)
 
         self.log("train/loss", loss)
 
         return loss
 
-    def validation_step(self, batch, batch_idx) -> STEP_OUTPUT | None:
+    def validation_step(self, batch, batch_idx):
         loss = self.forward_pass(batch, batch_idx)
 
         self.log("valid/loss", loss)
