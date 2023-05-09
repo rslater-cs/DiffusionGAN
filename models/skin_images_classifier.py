@@ -13,6 +13,10 @@ import torch.nn as nn
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
+import numpy as np
+#import seaborn as sns
+
 
 resize_transform = transforms.Compose([
     transforms.Resize(224),
@@ -128,7 +132,6 @@ number_of_records_as_train = dict()
 #zero the count for each label
 for i in range(10):
     number_of_records_as_train[i] = 0
-
 for index, label in disease_labels.iteritems():
     try:
         index_model_new_label = MODEL_LABELS.index(label)
@@ -143,6 +146,26 @@ for index, label in disease_labels.iteritems():
             shutil.copy(currentImagePath, moveToVal)
     except ValueError:
         print(f"The image has the label {label} and will be dropped.")
+
+
+#debug not right
+#for index, label in disease_labels.iteritems():
+#    try:
+#        index_model_new_label = MODEL_LABELS.index(label)
+#        number_of_records_as_train[index_model_new_label] += 1
+#        new_model_labels.append(index_model_new_label)
+#        currentImagePath = image_paths[index]
+#        if (number_of_records_as_train[index_model_new_label] <= 16):
+#            moveToTrain = os.path.join(train_subpath, str(index_model_new_label))
+#            shutil.copy(currentImagePath, moveToTrain)
+#        elif ((number_of_records_as_train[index_model_new_label] >= 17) and (number_of_records_as_train[index_model_new_label] <= 32)):
+#            moveToVal = os.path.join(validation_subpath, str(index_model_new_label))
+#            shutil.copy(currentImagePath, moveToVal)
+#    except ValueError:
+#        print(f"The image has the label {label} and will be dropped.")
+
+
+
 
 label_occurences_new = dict()
 
@@ -166,9 +189,14 @@ tensor_resized_image_data_val = datasets.ImageFolder(root=validation_subpath, tr
 
 
 batch_size = 64
+#batch_size_debug = 4
 
 train_dataloader = DataLoader(tensor_resized_image_data_train, batch_size=batch_size , shuffle = True)
 val_dataloader = DataLoader(tensor_resized_image_data_val, batch_size=batch_size, shuffle = True)
+
+#train_dataloader = DataLoader(tensor_resized_image_data_train, batch_size=batch_size_debug , shuffle = True)
+#val_dataloader = DataLoader(tensor_resized_image_data_val, batch_size=batch_size_debug, shuffle = True)
+
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -191,6 +219,11 @@ validation_loss = []
 train_accuracy = []
 validatation_accuracy = []
 epochs = 18
+#epochs = 3
+
+
+predicted_labels = []
+actual_labels = []
 
 #train the model
 def train(dataloader, val_dataloader, model, loss_fn, optimizer):
@@ -203,7 +236,7 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
         train_accuracy_of_epoch = 0
         validation_accuracy_of_epoch = 0
 
-        for batch, (X, y) in enumerate(dataloader):
+        for batch, (X, y) in tqdm(enumerate(dataloader)):
             X, y = X.to(device), y.to(device)
 
             pred = model(X)
@@ -226,8 +259,9 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
         train_loss.append(train_loss_of_epoch)
         train_accuracy.append(train_accuracy_of_epoch)
 
-            
-        for batch, (X, y) in enumerate(val_dataloader):
+        predicted_labels_epoch = []
+        actual_labels_epoch = []
+        for batch, (X, y) in tqdm(enumerate(val_dataloader)):
             X, y = X.to(device), y.to(device)
             model.eval()
 
@@ -237,11 +271,18 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
             
             validation_loss_of_epoch = validation_loss_of_epoch + loss.item()
             _, predicted = torch.max(pred.data, 1)
+
+            predicted_labels_epoch = np.concatenate((predicted_labels_epoch, predicted.cpu().numpy())).astype(int)
+            actual_labels_epoch = np.concatenate((actual_labels_epoch, y.cpu().numpy())).astype(int)
+
             validation_accuracy_of_epoch += (predicted == y).sum().item()
 
             #if batch % 100 == 0:
                 #loss, current = loss.item(), batch * len(X)
                 #print(f"val_loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+
+        actual_labels.append(actual_labels_epoch)
+        predicted_labels.append(predicted_labels_epoch)
 
         validation_loss_of_epoch = validation_loss_of_epoch / len(val_dataloader)
         validation_accuracy_of_epoch = validation_accuracy_of_epoch / len(val_dataloader)
@@ -250,29 +291,75 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
 
         print('Epoch [{}/{}], Train Loss: {:.4f}, Train Acc: {:.4f}, Val Loss: {:.4f}, Val Acc: {:.4f}'
           .format(epochs+1, epochs, train_loss_of_epoch, train_accuracy_of_epoch, validation_loss_of_epoch, validation_accuracy_of_epoch))
+        
+    return actual_labels, predicted_labels
 
 
-train(train_dataloader, val_dataloader, model, loss, optimizer)
+actual_labels, predicted_labels = train(train_dataloader, val_dataloader, model, loss, optimizer)
 
 print("Done!")
 
+#metrics on validation data
+precision_score_for_class = []
+recall_score_for_class = []
+f1_score_for_class = []
 
+precision_macro_score = []
+recall_macro_score = []
+f1_macro_score = []
+
+for j in range(len(actual_labels)):
+    precision_score_for_class.append(precision_score(actual_labels[j], predicted_labels[j], average=None))
+    recall_score_for_class.append(recall_score(actual_labels[j], predicted_labels[j], average=None))
+    f1_score_for_class.append(f1_score(actual_labels[j], predicted_labels[j], average=None))
+
+    precision_macro_score.append(precision_score(actual_labels[j], predicted_labels[j], average='macro'))
+    recall_macro_score.append(recall_score(actual_labels[j], predicted_labels[j], average='macro'))
+    f1_macro_score.append(f1_score(actual_labels[j], predicted_labels[j], average='macro'))
+
+LABELS = ['MEL', 'NV', 'BCC', 'SL', 'LK', 'DF', 'VASC', 'SCC', 'AMP', 'UNK']
+
+x_axis_epochs = []
+for z in range(epochs):
+    x_axis_epochs.append(z+1)
 
 #graph for training and validation loss
-plt.plot(train_loss, 'g', label='Training loss')
-plt.plot(validation_loss, 'r', label='Validation loss')
+plt.plot(x_axis_epochs, train_loss, 'g', label='Training loss')
+plt.plot(x_axis_epochs, validation_loss, 'r', label='Validation loss')
 plt.title('Training and validation loss')
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.legend()
 plt.show()
 
+plt.figure()
 #graph for training and validation accuracy
-plt.plot(train_accuracy, 'g', label='Training accuracy')
-plt.plot(validatation_accuracy, 'r', label='Validation accuracy')
+plt.plot(x_axis_epochs, train_accuracy, 'g', label='Training accuracy')
+plt.plot(x_axis_epochs, validatation_accuracy, 'r', label='Validation accuracy')
 plt.title('Training and validation accuracy')
 plt.xlabel('Epochs')
 plt.ylabel('Accuracy')
 plt.legend()
 plt.show()
 
+plt.figure()
+#graph for f1 score macro
+plt.plot(x_axis_epochs, f1_macro_score, 'g', label='f1 macro score for each epoch on val data')
+plt.title('f1 macro score')
+plt.xlabel('Epochs')
+plt.ylabel('f1 macro score')
+plt.legend()
+plt.show()
+
+#table for precision TODO
+#a, b = plt.subplots()
+#table = b.table(cellText=precision_score_for_class[len(precision_score_for_class)-1], colLabels=None, cellLoc='center', loc='center')
+
+#table for recall TODO
+
+
+#plot the confusion matrix
+confusion_m = confusion_matrix(actual_labels[len(actual_labels)-1], predicted_labels[len(predicted_labels)-1])
+confusion_plot = pd.DataFrame(confusion_m, range(10), range(10))
+plt.figure(figsize = (35, 35))
+#sns.heatmap(confusion_plot, annot=True)
