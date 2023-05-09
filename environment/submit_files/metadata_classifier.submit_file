@@ -32,7 +32,7 @@ environment = "mount=/vol/research/COM3025Team5"
 
 # -------------------------------------
 # Requirements for the Job (see NvidiaDocker/Example09)
-requirements = (CUDAGlobalMemoryMb > 20000) && (CUDAGlobalMemoryMb <  25000) && \
+requirements = (CUDAGlobalMemoryMb > 10000) && (CUDAGlobalMemoryMb <  15000) && \
 #              (HasStornext) && \
                (CUDACapability > 2.0)
 
