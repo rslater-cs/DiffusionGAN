@@ -1,0 +1,13 @@
+name: dgan
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+  - torchaudio
+  - torchvision
+  - pytorch
+  - pytorch-cuda=11.7
+  - pandas
+  - opencv
+  - lightning
+prefix: C:\Users\ryans\anaconda3\envs\dgan
