@@ -58,7 +58,7 @@ MaxJobRetirementTime = 0
 
 # -----------------------------------
 # Queue commands. We can use variables and flags to launch our command with multiple options (as you would from the command line)
-arguments = train_metadata_classifier.py --path /vol/research/COM3025Team5/ISIC_Combined --save_dir /vol/research/COM3025Team5/ISIC_Combined/metadata_classifier_results --epochs $(epochs) --learning_rate $(lr)
+arguments = $ENV(PWD)/train_metadata_classifier.py --path /vol/research/COM3025Team5/ISIC_Combined --save_dir /vol/research/COM3025Team5/ISIC_Combined/metadata_classifier_results --epochs $(epochs) --learning_rate $(lr)
 
 epochs = 50
 lr = 0.0001
