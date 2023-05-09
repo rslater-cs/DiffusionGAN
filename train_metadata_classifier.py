@@ -21,7 +21,7 @@ if __name__ == '__main__':
     save_dir = Path(args.save_dir)
 
     dataset = Metadata(root=Path(args.path))
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=12)
     classifier = MetadataTraining(dropout=0.5, lr=args.learning_rate)
 
     print(classifier)
