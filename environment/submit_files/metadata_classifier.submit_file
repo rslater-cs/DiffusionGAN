@@ -28,7 +28,7 @@ error  = c$(cluster).p$(process).error
 should_transfer_files = YES
 
 # Mount the project spaces containing the Anaconda environments and the code
-environment = "/vol/research/COM3025Team5"
+environment = "mount=/vol/research/COM3025Team5"
 
 # -------------------------------------
 # Requirements for the Job (see NvidiaDocker/Example09)
