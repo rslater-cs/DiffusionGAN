@@ -1,13 +1,10 @@
 import torch
 from torch.utils.data import Dataset
-from torch import nn, Tensor
 from torchvision import transforms
-import cv2
 
 from PIL import Image
 
 import pandas as pd
-import numpy as np
 
 from pathlib import Path
 
