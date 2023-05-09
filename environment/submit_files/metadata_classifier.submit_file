@@ -10,7 +10,7 @@ JobBatchName = "MetadataClassifier"
 
 # --------------------------------------------
 # Executable
-executable    = $ENV(PWD)/miniconda3/envs/dgan/bin/python
+executable    = /vol/research/COM3025Team5/miniconda3/envs/dgan/bin/python
 
 # ---------------------------------------------------
 # Universe (vanilla, docker)
