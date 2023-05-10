@@ -57,8 +57,6 @@ class MetadataTraining(pl.LightningModule):
 
         B = x.shape[0]
 
-        self.classifier.zero_grad()
-
         # output: disease_out, sex_out, age_out, site_out, mb_out
         outputs = self.classifier(x)
 
