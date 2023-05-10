@@ -2,3 +2,4 @@ test.py
 *.pyc
 *.csv
 lightning_logs
+.vs
