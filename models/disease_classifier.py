@@ -34,7 +34,7 @@ class DiseaseTraining(pl.LightningModule):
         self.predicted_labels = []
         self.true_labels = []
 
-    def training_step(self, batch_idx, batch):
+    def training_step(self, batch, batch_idx):
         image, disease = batch
 
         pred = self.model(image)
@@ -47,7 +47,7 @@ class DiseaseTraining(pl.LightningModule):
 
         return loss
 
-    def validation_step(self, batch_idx, batch):
+    def validation_step(self, batch, batch_idx):
         image, disease = batch
 
         pred = self.model(image)
@@ -60,7 +60,7 @@ class DiseaseTraining(pl.LightningModule):
 
         return loss
     
-    def test_step(self, batch_idx, batch) -> STEP_OUTPUT | None:
+    def test_step(self, batch, batch_idx) -> STEP_OUTPUT | None:
         if batch_idx == 0:
             self.predicted_labels = []
             self.true_labels = []

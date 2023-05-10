@@ -51,7 +51,7 @@ class Classification(Dataset):
         return len(self.image_paths)
     
     def __getitem__(self, index):
-        image = Image.open(self.image_paths[index])
+        image = Image.open(self.image_paths.iloc[index])
         image = self.transform(image)
 
         disease = self.disease_labels.iloc[index]

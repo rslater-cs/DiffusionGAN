@@ -1,7 +1,11 @@
 from models.disease_classifier import DiseaseTraining
 from utils.datasets import Classification
-from torch.utils.data import DataLoader
+
 import torch
+torch.set_float32_matmul_precision('high')
+
+from torch.utils.data import DataLoader
+
 import lightning as pl
 from argparse import ArgumentParser
 from pathlib import Path
@@ -23,23 +27,17 @@ if __name__ == '__main__':
     save_dir = Path(args.save_dir)
 
     dataset = Classification(root=Path(args.path))
-    datalen = len(dataset)
-    lengths = [int(0.7*datalen), int(0.1*datalen), int(0.2*datalen)]
 
-    if sum(lengths) < datalen:
-        lengths[-1] += datalen-sum(lengths)
+    traindata, validdata, testdata = random_split(dataset, [0.7, 0.1, 0.2])
 
-    traindata, validdata, testdata = random_split(dataset, lengths)
-
-    trainloader = DataLoader(traindata, batch_size=32, shuffle=True, num_workers=12)
-    validloader = DataLoader(validdata, batch_size=32, shuffle=True, num_workers=12)
-    testloader = DataLoader(testdata, batch_size=32, shuffle=True, num_workers=12)
+    trainloader = DataLoader(traindata, batch_size=16, shuffle=True, num_workers=12)
+    validloader = DataLoader(validdata, batch_size=16, shuffle=False, num_workers=12)
+    testloader = DataLoader(testdata, batch_size=16, shuffle=False, num_workers=12)
 
     classifier = DiseaseTraining(lr=args.learning_rate)
 
-    print(classifier)
+    trainer = pl.Trainer(max_epochs=args.epochs)
+    trainer.fit(classifier, train_dataloaders=trainloader, val_dataloaders=validloader)
+    trainer.test(classifier, testloader)
 
-    trainer = pl.Trainer(max_epochs=args.epochs, default_root_dir=save_dir)
-    trainer.fit(classifier, train_dataloaders=trainloader, validloader=validloader, testloader=testloader)
-
-    torch.save(classifier.model.state_dict(), save_dir/'final_model.pt')
+    torch.save(classifier.model.state_dict(), save_dir/'final_diseae_model.pt')
