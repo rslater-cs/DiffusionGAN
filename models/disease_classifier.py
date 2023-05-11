@@ -5,7 +5,8 @@ from torch import nn
 from torch import optim
 from torchvision import models
 import lightning as pl
-from torchmetrics.classification import MulticlassPrecision, MulticlassRecall, MulticlassF1Score, MulticlassConfusionMatrix
+import pandas as pd
+from torchmetrics.classification import MulticlassPrecision, MulticlassRecall, MulticlassF1Score, MulticlassConfusionMatrix, MulticlassAccuracy
 
 
 class DiseaseClassifier(nn.Module):
@@ -24,10 +25,11 @@ class DiseaseTraining(pl.LightningModule):
         self.model = DiseaseClassifier()
         self.loss_func = nn.CrossEntropyLoss()
 
-        self.precision = MulticlassPrecision(10, average=None)
-        self.recall = MulticlassRecall(10, average=None)
-        self.f1score = MulticlassF1Score(10, average=None)
-        self.confusion_matrix = MulticlassConfusionMatrix(10)
+        self.precision = MulticlassPrecision(10, average=None).to(self.device)
+        self.recall = MulticlassRecall(10, average=None).to(self.device)
+        self.f1score = MulticlassF1Score(10, average=None).to(self.device)
+        self.confusion_matrix = MulticlassConfusionMatrix(10).to(self.device)
+        self.accuracy = MulticlassAccuracy(10)
 
         self.lr = lr
 
@@ -75,24 +77,31 @@ class DiseaseTraining(pl.LightningModule):
         self.log("test/accuracy", acc, on_step=False, on_epoch=True)
         self.log("test/loss", loss, on_step=False, on_epoch=True)
 
+        self.accuracy(pred, disease)
+
         self.predicted_labels.extend(predidx.tolist())
         self.true_labels.extend(disease.tolist())
 
-    def on_test_end(self):
-        self.predicted_labels = torch.tensor(self.predicted_labels)
-        self.true_labels = torch.tensor(self.true_labels)
+    def on_test_epoch_end(self):
+        self.predicted_labels = torch.tensor(self.predicted_labels).to(self.device)
+        self.true_labels = torch.tensor(self.true_labels).to(self.device)
 
         pr = self.precision(self.predicted_labels, self.true_labels)
-        self.log_dict({'test/precision':pr})
 
         rc = self.recall(self.predicted_labels, self.true_labels)
-        self.log_dict({'test/recall':rc})
 
         f1 = self.f1score(self.predicted_labels, self.true_labels)
-        self.log_dict({'test/f1':f1})
 
         cm = self.confusion_matrix(self.predicted_labels, self.true_labels)
+
+        print(pr)
+
+        self.log("test/accuracy", self.accuracy(self.predicted_labels, self.true_labels))
+        pd.DataFrame({"test/precision":pr.tolist(),"test/recall":rc.tolist(),"test/f1":f1.tolist()}).to_csv(f'{self.logger.root_dir}/final_metrics.csv')
+
         torch.save({'confusion_matrix':cm}, f'{self.logger.root_dir}/confusion_matrix.pt')
+
+        return {'precision':pr, 'recall':rc, 'f1':f1, 'matrix':cm}
         
     
     def configure_optimizers(self) -> Any:

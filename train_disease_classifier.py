@@ -7,6 +7,8 @@ torch.set_float32_matmul_precision('high')
 from torch.utils.data import DataLoader
 
 import lightning as pl
+import matplotlib.pyplot as plt
+import pandas as pd
 from argparse import ArgumentParser
 from pathlib import Path
 import os
@@ -38,6 +40,17 @@ if __name__ == '__main__':
 
     trainer = pl.Trainer(max_epochs=args.epochs)
     trainer.fit(classifier, train_dataloaders=trainloader, val_dataloaders=validloader)
-    trainer.test(classifier, testloader)
+    tst = trainer.test(classifier, testloader)
+
+    print(tst)
+
+    # data = dict.fromkeys(['precision','recall','f1'])
+    # data['precision'] = pr
+    # data['recall'] = rc
+    # data['f1'] = f1
+
+    # plt.matshow(cm)
+
+    # pd.DataFrame(data).to_csv(save_dir/'final_metrics.csv')
 
     torch.save(classifier.model.state_dict(), save_dir/'final_diseae_model.pt')
