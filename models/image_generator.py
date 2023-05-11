@@ -1,5 +1,3 @@
-# Taken from jupyter notebook
-
 import os
 import csv
 import numpy
@@ -16,12 +14,14 @@ from torchvision import transforms
 import datasets
 from transformers import CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, UNet2DConditionModel, PNDMScheduler, LMSDiscreteScheduler, DDPMScheduler
-from diffusers.optimization import get_cosine_schedule_with_warmup
+from diffusers.optimization import get_scheduler, get_cosine_schedule_with_warmup
 
 import open_clip
 
 dataset_dir = os.getcwd() + "/dataset"
 transformer_dir = cache_dir=os.getcwd() + "/transformer"
+
+manual_datset = False
 
 def image_grid(imgs, rows, cols):
     assert len(imgs) == rows*cols
@@ -72,7 +72,7 @@ class DiffusionModel:
         
         self.optimizer = torch.optim.AdamW(
             self.unet.parameters(),
-            lr=5e-5,
+            lr=1e-5,
             betas=(0.95, 0.999),
             weight_decay=1e-6,
             eps=1e-08,
@@ -108,15 +108,6 @@ class DiffusionModel:
         
         latents = latents * self.scheduler.init_noise_sigma
         
-        return latents
-    
-    def images_to_latent_space(self, images):
-        # Make sure image is float form on GPU
-        images = images.float().cuda()
-        
-        with torch.no_grad():
-            latents = self.vae.encode(images).latent_dist.sample()
-            
         return latents
     
     def generate_step(self, step_index, latents, text_embeddings, guidance_scale):
@@ -160,30 +151,41 @@ class DiffusionModel:
         text_embeddings = self.prompts_to_query_embeddings([prompt])
     
         return decode_image(self.generate_raw(latents, text_embeddings))
+    
+    def show_image(self, latents):
+        with torch.no_grad():
+            image = self.vae.decode(latents).sample
+            
+        image_grid([decode_image(image)], 1, 1).show()
             
     def train_step(self, batch, lr_scheduler):
         images = batch["image"].to(self.device)
         
-        image_latents = self.images_to_latent_space(images)
+        # Convert image to latents
+        with torch.no_grad():
+            image_latents = self.vae.encode(images.float().cuda()).latent_dist.sample()
         
         # Generate image noise
         noise = torch.randn(image_latents.shape).to(self.device)
         
         # Generate random timesteps
-        timesteps = torch.randint(0, self.noise_scheduler.config.num_train_timesteps, (image_latents.shape[0],)).long().to(self.device)
+        bsz = image_latents.shape[0]
+        timesteps = torch.randint(0, self.noise_scheduler.config.num_train_timesteps, (bsz,), device=self.device).long()
         
+        # Generate noisy versions of images based on timesteps
         with torch.no_grad():
-            # Generate noisy versions of images based on timesteps
             noise_latents = self.noise_scheduler.add_noise(image_latents, noise, timesteps)
         
         text_embeddings = self.prompts_to_embeddings(batch["text"])
         
         predicted_latents = self.unet(noise_latents, timesteps, encoder_hidden_states=text_embeddings.last_hidden_state.cuda()).sample
         
-        with torch.no_grad():
-            predicted_noise = self.vae.decode(predicted_latents).sample
+        #self.show_image(image_latents)
+        #self.show_image(noise)
+        #self.show_image(noise_latents)
+        #self.show_image(predicted_latents)
             
-        loss = mse_loss(predicted_latents, noise_latents)
+        loss = mse_loss(predicted_latents, noise, reduction="mean")
         
         loss.backward()
         
@@ -192,30 +194,7 @@ class DiffusionModel:
         self.optimizer.zero_grad()
         
     def train_go_emotions(self, dataset):
-        transform = transforms.Compose([
-            transforms.Resize(224, interpolation=transforms.InterpolationMode.BILINEAR),
-            transforms.CenterCrop(224), # Makes sense for these images in particular
-            transforms.RandomHorizontalFlip(),
-        ])
-
-        def make_prompt(entry):
-            dx = entry["dx"]
-            dx_type = entry["dx_type"]
-            age = entry["age"]
-            sex = entry["sex"]
-            position = entry["localization"]
-            
-            return f"An image of {dx} skin cancer of type {dx_type} located at {position} on a {sex} of age {age}"
-        
-        def transform_images(entry):
-            new_entry = {}
-            new_entry["image"] = transform(entry["image"])
-            new_entry["text"] = make_prompt(entry)
-            return new_entry
-        
-        dataset2 = dataset.set_transform(transform_images)
-        
-        train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=10, shuffle=False)
+        train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=10, shuffle=True)
         
         epochs = 1
         
@@ -231,7 +210,8 @@ class DiffusionModel:
                 #image = entry["image"].permute(2, 0, 1)
                 self.train_step(batch, lr_scheduler)
 
-class DS:
+# Manual dataset if datasets module isn't able to download anything
+class Dataset:
     def __init__(self, filename):
         self.entries = []
         
@@ -266,15 +246,73 @@ class DS:
     def set_transform(self, transform):
         self.transform = transform
 
-model = DiffusionModel(torch_device, 50)
+if manual_dataset:
+    dataset = Dataset("download/HAM10000_metadata.csv")
+    
+    transform = transforms.Compose([
+        transforms.Resize(224, interpolation=transforms.InterpolationMode.BILINEAR),
+        transforms.CenterCrop(224), # Makes sense for these images in particular
+        transforms.RandomHorizontalFlip()
+    ])
+
+    def make_prompt(entry):
+        dx = entry["dx"]
+        dx_type = entry["dx_type"]
+        age = entry["age"]
+        sex = entry["sex"]
+        position = entry["localization"]
+
+        return f"An image of {dx} skin cancer of type {dx_type} located at {position} on a {sex} of age {age}"
+
+    def transform_images(entry):
+        new_entry = {}
+        new_entry["image"] = transform(entry["image"])
+        new_entry["text"] = make_prompt(entry)
+        return new_entry
+
+    dataset.set_transform(transform_images)
+
+else:
+    # datsets that automatically downloads datasets
+    dataset = datasets.load_dataset("marmal88/skin_cancer", cache_dir=dataset_dir).with_format("torch").cast_column("image", datasets.Image(decode=True))["train"]
+
+    transform = transforms.Compose([
+        transforms.Resize(224, interpolation=transforms.InterpolationMode.BILINEAR),
+        transforms.CenterCrop(224), # Makes sense for these images in particular
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor()
+    ])
+
+    def transform_images(entries):
+        new_entries = {}
+        new_entries["image"] = [transform(entry.convert("RGB")) for entry in entries["image"]]
+        new_entries["text"] = []
+        
+        for i in range(len(entries["dx"])):
+            dx = entries["dx"][i]
+            dx_type = entries["dx_type"][i]
+            age = entries["age"][i]
+            sex = entries["sex"][i]
+            position = entries["localization"][i]
+
+            new_entries["text"].append(f"An image of {dx} skin cancer of type {dx_type} located at {position} on a {sex} of age {age}")
             
-dataset = DS("download/HAM10000_metadata.csv")
+        return new_entries
+
+    dataset.set_transform(transform_images)
+    
+    print(dataset[0:3])
+
+
+model = DiffusionModel(torch_device, 50)
 
 model.train_go_emotions(dataset)
 
 images = []
 for i in range(0, 4):
-    image = model.generate(" human nv skin cancer of type histo located on the foot of a male of age 50.0")
+    image = model.generate("actinic_keratoses skin cancer of type histo located on the foot of a male of age 50.0")
+    
+    #image = model.generate("skin cancer")
     
     #image = model.generate("an image of a dog wearing a hat")
     
