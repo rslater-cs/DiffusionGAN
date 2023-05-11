@@ -132,6 +132,8 @@ number_of_records_as_train = dict()
 #zero the count for each label
 for i in range(10):
     number_of_records_as_train[i] = 0
+
+""""
 for index, label in disease_labels.iteritems():
     try:
         index_model_new_label = MODEL_LABELS.index(label)
@@ -146,23 +148,23 @@ for index, label in disease_labels.iteritems():
             shutil.copy(currentImagePath, moveToVal)
     except ValueError:
         print(f"The image has the label {label} and will be dropped.")
-
+"""
 
 #debug not right
-#for index, label in disease_labels.iteritems():
-#    try:
-#        index_model_new_label = MODEL_LABELS.index(label)
-#        number_of_records_as_train[index_model_new_label] += 1
-#        new_model_labels.append(index_model_new_label)
-#        currentImagePath = image_paths[index]
-#        if (number_of_records_as_train[index_model_new_label] <= 16):
-#            moveToTrain = os.path.join(train_subpath, str(index_model_new_label))
-#            shutil.copy(currentImagePath, moveToTrain)
-#        elif ((number_of_records_as_train[index_model_new_label] >= 17) and (number_of_records_as_train[index_model_new_label] <= 32)):
-#            moveToVal = os.path.join(validation_subpath, str(index_model_new_label))
-#            shutil.copy(currentImagePath, moveToVal)
-#    except ValueError:
-#        print(f"The image has the label {label} and will be dropped.")
+for index, label in disease_labels.iteritems():
+    try:
+        index_model_new_label = MODEL_LABELS.index(label)
+        number_of_records_as_train[index_model_new_label] += 1
+        new_model_labels.append(index_model_new_label)
+        currentImagePath = image_paths[index]
+        if (number_of_records_as_train[index_model_new_label] <= 16):
+            moveToTrain = os.path.join(train_subpath, str(index_model_new_label))
+            shutil.copy(currentImagePath, moveToTrain)
+        elif ((number_of_records_as_train[index_model_new_label] >= 17) and (number_of_records_as_train[index_model_new_label] <= 32)):
+            moveToVal = os.path.join(validation_subpath, str(index_model_new_label))
+            shutil.copy(currentImagePath, moveToVal)
+    except ValueError:
+        print(f"The image has the label {label} and will be dropped.")
 
 
 
@@ -184,12 +186,15 @@ plt.show()
 #set the new labels to the Classification object
 dataset_classification.disease_labels = new_model_labels
 
+
+
 tensor_resized_image_data_train = datasets.ImageFolder(root=train_subpath, transform = resize_transform)
 tensor_resized_image_data_val = datasets.ImageFolder(root=validation_subpath, transform = resize_transform)
 
 
 batch_size = 64
 #batch_size_debug = 4
+
 
 train_dataloader = DataLoader(tensor_resized_image_data_train, batch_size=batch_size , shuffle = True)
 val_dataloader = DataLoader(tensor_resized_image_data_val, batch_size=batch_size, shuffle = True)
@@ -207,7 +212,7 @@ model = models.resnet101(pretrained=True)
 for param in model.parameters():
     param.requires_grad = False
 
-
+f1_macro_score = []
 num_classes = 10
 model.fc = nn.Linear(model.fc.in_features, num_classes)
 loss = nn.CrossEntropyLoss()
@@ -218,9 +223,10 @@ train_loss = []
 validation_loss = []
 train_accuracy = []
 validatation_accuracy = []
-epochs = 18
-#epochs = 3
-
+#epochs = 10
+epochs = 4
+best_model_lowest_val_loss = -1
+best_model_highest_f1_score = -1
 
 predicted_labels = []
 actual_labels = []
@@ -229,6 +235,8 @@ actual_labels = []
 def train(dataloader, val_dataloader, model, loss_fn, optimizer):
     model = model.to(device)
     model.train()
+    lowest_val_loss = float('inf')
+    highest_f1_score = -0.1
     for t in tqdm(range(epochs)):
         print(f"Epoch {t+1}\n-------------------------------")
         train_loss_of_epoch = 0
@@ -268,7 +276,7 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
             with torch.no_grad():
                 pred = model(X)
                 loss = loss_fn(pred, y)
-            
+                
             validation_loss_of_epoch = validation_loss_of_epoch + loss.item()
             _, predicted = torch.max(pred.data, 1)
 
@@ -281,41 +289,54 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
                 #loss, current = loss.item(), batch * len(X)
                 #print(f"val_loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
-        actual_labels.append(actual_labels_epoch)
-        predicted_labels.append(predicted_labels_epoch)
+        #actual_labels.append(actual_labels_epoch)
+        #predicted_labels.append(predicted_labels_epoch)
+        f1_score_epoch = f1_score(actual_labels_epoch, predicted_labels_epoch, average='macro')
+        f1_macro_score.append(f1_score_epoch)
 
         validation_loss_of_epoch = validation_loss_of_epoch / len(val_dataloader)
         validation_accuracy_of_epoch = validation_accuracy_of_epoch / len(val_dataloader)
         validation_loss.append(validation_loss_of_epoch)
         validatation_accuracy.append(validation_accuracy_of_epoch)
 
+        torch.save(model.state_dict(), f"weights_epoch{t+1}.pt")
+
+        if (validation_loss_of_epoch < lowest_val_loss):
+            lowest_val_loss = validation_loss_of_epoch
+            best_model_lowest_val_loss = t + 1
+
+        if (f1_score_epoch > highest_f1_score):
+            highest_f1_score = f1_score_epoch
+            best_model_highest_f1_score = t + 1
+
         print('Epoch [{}/{}], Train Loss: {:.4f}, Train Acc: {:.4f}, Val Loss: {:.4f}, Val Acc: {:.4f}'
           .format(epochs+1, epochs, train_loss_of_epoch, train_accuracy_of_epoch, validation_loss_of_epoch, validation_accuracy_of_epoch))
         
-    return actual_labels, predicted_labels
+    return actual_labels, predicted_labels, best_model_lowest_val_loss, best_model_highest_f1_score
 
 
-actual_labels, predicted_labels = train(train_dataloader, val_dataloader, model, loss, optimizer)
+actual_labels, predicted_labels, best_model_lowest_val_loss, best_model_highest_f1_score = train(train_dataloader, val_dataloader, model, loss, optimizer)
 
-print("Done!")
+print(f"Best model on lowest val score was on epoch {best_model_lowest_val_loss}. If you want to load the weights of this model you should load the the weights_epoch{best_model_lowest_val_loss} pt file")
+print(f"Best model on highest f1 score was on epoch {best_model_highest_f1_score}. If you want to load the weights of this model you should load the the weights_epoch{best_model_highest_f1_score} pt file")
 
 #metrics on validation data
-precision_score_for_class = []
-recall_score_for_class = []
-f1_score_for_class = []
+#precision_score_for_class = []
+#recall_score_for_class = []
+#f1_score_for_class = []
 
-precision_macro_score = []
-recall_macro_score = []
-f1_macro_score = []
+#precision_macro_score = []
+#recall_macro_score = []
 
-for j in range(len(actual_labels)):
-    precision_score_for_class.append(precision_score(actual_labels[j], predicted_labels[j], average=None))
-    recall_score_for_class.append(recall_score(actual_labels[j], predicted_labels[j], average=None))
-    f1_score_for_class.append(f1_score(actual_labels[j], predicted_labels[j], average=None))
 
-    precision_macro_score.append(precision_score(actual_labels[j], predicted_labels[j], average='macro'))
-    recall_macro_score.append(recall_score(actual_labels[j], predicted_labels[j], average='macro'))
-    f1_macro_score.append(f1_score(actual_labels[j], predicted_labels[j], average='macro'))
+#for j in range(len(actual_labels)):
+    #precision_score_for_class.append(precision_score(actual_labels[j], predicted_labels[j], average=None))
+    #recall_score_for_class.append(recall_score(actual_labels[j], predicted_labels[j], average=None))
+    #f1_score_for_class.append(f1_score(actual_labels[j], predicted_labels[j], average=None))
+
+    #precision_macro_score.append(precision_score(actual_labels[j], predicted_labels[j], average='macro'))
+    #recall_macro_score.append(recall_score(actual_labels[j], predicted_labels[j], average='macro'))
+    
 
 LABELS = ['MEL', 'NV', 'BCC', 'SL', 'LK', 'DF', 'VASC', 'SCC', 'AMP', 'UNK']
 
@@ -350,16 +371,34 @@ plt.xlabel('Epochs')
 plt.ylabel('f1 macro score')
 plt.legend()
 plt.show()
+#ndex_of_best_model = best_model-1
 
-#table for precision TODO
-#a, b = plt.subplots()
-#table = b.table(cellText=precision_score_for_class[len(precision_score_for_class)-1], colLabels=None, cellLoc='center', loc='center')
+#precision score for each class
+#precision_for_each_class = precision_score_for_class[index_of_best_model]
+#for i, label in enumerate(LABELS):
+    #print(f"Label {label} precision score = {round(precision_for_each_class[i], 2)}")
 
-#table for recall TODO
+#print(" ")
+
+#recall score for each class
+#recall_score_for_each_class = recall_score_for_class[index_of_best_model]
+#for i, label in enumerate(LABELS):
+    #print(f"Label {label} recall score = {round(recall_score_for_each_class[i], 2)}")
+
+#print(" ")
+
+#f1 score for each class
+#f1_score_for_each_class = f1_score_for_class[index_of_best_model]
+#for i, label in enumerate(LABELS):
+    #print(f"Label {label} f1 score = {round(f1_score_for_each_class[i], 2)}")
+
 
 
 #plot the confusion matrix
-confusion_m = confusion_matrix(actual_labels[len(actual_labels)-1], predicted_labels[len(predicted_labels)-1])
-confusion_plot = pd.DataFrame(confusion_m, range(10), range(10))
-plt.figure(figsize = (35, 35))
-#sns.heatmap(confusion_plot, annot=True)
+def plot_confusion_matrix():
+    confusion_m = confusion_matrix(actual_labels, predicted_labels)
+    confusion_plot = pd.DataFrame(confusion_m, range(10), range(10))
+    plt.figure(figsize = (35, 35))
+    sns.heatmap(confusion_plot, annot=True)
+
+print("Done!")
