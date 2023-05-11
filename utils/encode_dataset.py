@@ -66,10 +66,10 @@ disease_path = base_path / 'diseases.csv'
 # Load data and drop the lesser represented diseases
 metadata = pd.read_csv(metadata_path)
 disease_data = pd.read_csv(disease_path)
-disease_data = disease_data.drop('LK', axis=1)
-disease_data = disease_data.drop('SL', axis=1)
-disease_data = disease_data.drop('CAM', axis=1)
-disease_data = disease_data.drop('AMP', axis=1)
+# disease_data = disease_data.drop('LK', axis=1)
+# disease_data = disease_data.drop('SL', axis=1)
+# disease_data = disease_data.drop('CAM', axis=1)
+# disease_data = disease_data.drop('AMP', axis=1)
 
 
 #initialise the labels and attention mask dictionaries

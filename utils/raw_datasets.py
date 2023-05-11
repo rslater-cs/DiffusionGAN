@@ -46,7 +46,7 @@ class ISIC_2020(Dataset):
         super().__init__()
         self.disease_encoding = {'melanoma':'MEL', 'nevus':'NV', 'unknown':'UNK', 
                                  'seborrheic keratosis':'SK', 'lentigo NOS':'LN', 
-                                 'lichenoid keratosis':'SK', 'solar lentigo':'SL', 
+                                 'lichenoid keratosis':'LK', 'solar lentigo':'SL', 
                                  'cafe-au-lait macule':'CAM', 
                                  'atypical melanocytic proliferation':'AMP'}
 

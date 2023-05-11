@@ -84,7 +84,7 @@ def merge_dataset(dataset, new_dataset, image_mapping, image_key):
             # We want to change the path to the image to be our new file name
             image_path = labels['image']
             labels = labels.drop('image', axis=0)
-            labels['image'] = Path(f'ISIC_Merged_{image_key}.jpg')
+            labels['image'] = f'ISIC_Merged_{image_key}.jpg'
 
             # add the label data to our new dataset
             new_dataset = add_row(new_dataset, labels)
