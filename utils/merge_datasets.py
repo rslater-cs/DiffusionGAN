@@ -1,4 +1,4 @@
-from datasets import ISIC_2020, ISIC_2019, ISIC_2018, ISIC_2017, ISIC_2016, DISEASES, METADATA
+from raw_datasets import ISIC_2020, ISIC_2019, ISIC_2018, ISIC_2017, ISIC_2016, DISEASES, METADATA
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +12,7 @@ import os
 
 # Specific path of labels and images
 base = Path('E:\\Programming\\Datasets\\DiseaseClassification')
+save_dir = Path(f'E:\\Programming\\Datasets\\All_ISIC\\')
 
 # All labels that we are merging to
 all_labels = ['image'] + DISEASES + METADATA + ['benign_malignant']
@@ -90,7 +91,7 @@ def merge_dataset(dataset, new_dataset, image_mapping, image_key):
             new_dataset = add_row(new_dataset, labels)
 
             # copy the image into the new image folder
-            shutil.copy(image_path, labels['image'])
+            shutil.copy(image_path, save_dir/labels['image'])
 
             # Keeping track of duplicate images in case we need to refer to this data later on
             image_mapping['image_key'].append(image_key)

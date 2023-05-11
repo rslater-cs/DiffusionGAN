@@ -155,8 +155,6 @@ class ImageTextPrompt(Metadata):
 
         prompt = 'An image of a'
 
-        if attn['0'] == 1:
-
 
 
 
