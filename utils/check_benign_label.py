@@ -1,7 +1,7 @@
 from utils.datasets import Metadata
 from pathlib import Path
 
-base_path = Path('Z:\ISIC_Combined')
+base_path = Path('./')
 # clas = Classification(root=base_path)
 meta = Metadata(root=base_path)
 

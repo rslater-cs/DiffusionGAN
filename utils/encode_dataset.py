@@ -58,7 +58,7 @@ def benign_malignant_to_int(bm):
     
     return int(bm), 1
 
-base_path = Path('F:\\ISIC_Dataset\\ISIC_Combined')
+base_path = Path('./')
 
 metadata_path = base_path / 'metadata.csv'
 disease_path = base_path / 'diseases.csv'
