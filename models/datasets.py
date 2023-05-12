@@ -44,9 +44,9 @@ random_transform = transforms.Compose([
 ])
 
 resize_tranform = transforms.Compose([
+    transforms.ToTensor(),
     transforms.Resize(224),
     transforms.CenterCrop((224,224)),
-    transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
 ])
     
@@ -151,7 +151,7 @@ class ImageTextPrompt(Metadata):
         0:'male',
         1:'female'
     }
-    age_to_str = lambda x: int(x*5)
+    age_to_str = lambda x: str(int(x*5))
     site_to_str = {
         0:'head/neck',
         1:'upper extremity',
@@ -176,8 +176,42 @@ class ImageTextPrompt(Metadata):
         image = self.transform(image)
 
         attn = self.attn.iloc[index]
+        labels = self.labels.iloc[index]
 
-        prompt = 'An image of a'
+        prompt = 'An image of '
+
+        # place bening/malignant into string
+        if attn['4'] == 1:
+            prompt += f'{self.bm_to_str[labels["benign_malignant"]]} '
+            if attn['0'] == 0:
+                prompt += 'cancer '
+
+        # place disease into string
+        if attn['0'] == 1:
+            prompt += f'{self.disease_to_str[labels["disease"]]} '
+
+        # prepare if we have metadata
+        if attn['1'] == 1 or attn['2'] == 1 or attn['3'] == 1:
+            prompt += 'on '
+
+        # place site into string
+        if attn['3'] == 1:
+            prompt += f'the {self.site_to_str[labels["anatom_site"]]} of '
+
+        # prepare if we have metadata
+        if attn['1'] == 1 or attn['2'] == 1 or attn['3'] == 1:
+            prompt += 'a '
+
+        # place age into string
+        if attn['2'] == 1:
+            prompt += f'{self.age_to_str(labels["age"])} year old '
+
+        # place sex into string
+        if attn['1'] == 1:
+            prompt += f'{self.sex_to_str[labels["sex"]]}'
+
+        return image, prompt
+
 
 
 
