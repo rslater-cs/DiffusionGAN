@@ -151,7 +151,7 @@ class ImageTextPrompt(Metadata):
         0:'male',
         1:'female'
     }
-    age_to_str = lambda x: str(int(x*5))
+    age_to_str = lambda s, x: str(int(x*5))
     site_to_str = {
         0:'head/neck',
         1:'upper extremity',
@@ -210,7 +210,7 @@ class ImageTextPrompt(Metadata):
         if attn['1'] == 1:
             prompt += f'{self.sex_to_str[labels["sex"]]}'
 
-        return image, prompt
+        return prompt, image
 
 
 
