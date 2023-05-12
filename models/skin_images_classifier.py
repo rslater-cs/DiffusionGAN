@@ -16,17 +16,20 @@ from tqdm import tqdm
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 import numpy as np
 from datasets import Classification, stratified_split_indexes
-#import seaborn as sns
+from pathlib import Path
+import seaborn as sns
 
+WORKERS = 0
 
-dataset_classification = Classification()
+DATASET_PATH = Path('E:\\Programming\\Datasets\\All_ISIC')
+dataset_classification = Classification(root=DATASET_PATH)
 
 #visualize the dataset
 disease_labels = dataset_classification.disease_labels
 label_occurences = dict()
 
 #zero the count for each label
-for i in range(14):
+for i in range(10):
     label_occurences[i] = 0
 
 #get the number of images for each label
@@ -40,32 +43,32 @@ plt.show()
 #By visualizing the number of images for each labels, we can see that the number of images for the labels 4, 6, 11, 12 are
 #so little, so we will drop the images that belong to those labels and we will create a classsification model for 10 labels
 
-current_path = os.getcwd()
-folder_path = os.path.join(current_path, 'models')
+# current_path = os.getcwd()
+# folder_path = os.path.join(current_path, 'models')
 
-#create train subpath and validation sabpath
-train_subpath = os.path.join(folder_path, 'traincls')
-validation_subpath = os.path.join(folder_path, 'valcls')
+# #create train subpath and validation sabpath
+# train_subpath = os.path.join(folder_path, 'traincls')
+# validation_subpath = os.path.join(folder_path, 'valcls')
 
-if os.path.exists(train_subpath):
-    shutil.rmtree(train_subpath)
-os.mkdir(train_subpath)
+# if os.path.exists(train_subpath):
+#     shutil.rmtree(train_subpath)
+# os.mkdir(train_subpath)
 
-if os.path.exists(validation_subpath):
-    shutil.rmtree(validation_subpath)
-os.mkdir(validation_subpath)
+# if os.path.exists(validation_subpath):
+#     shutil.rmtree(validation_subpath)
+# os.mkdir(validation_subpath)
 
-#create 0 to 9 subfolders in train subfolder and validation subfolder
-for i in range(10):
-    createPath = str(i)
-    subpath_to_create_train = os.path.join(train_subpath, createPath)
-    subpath_to_create_val = os.path.join(validation_subpath, createPath)
-    os.mkdir(subpath_to_create_train)
-    os.mkdir(subpath_to_create_val)
+# #create 0 to 9 subfolders in train subfolder and validation subfolder
+# for i in range(10):
+#     createPath = str(i)
+#     subpath_to_create_train = os.path.join(train_subpath, createPath)
+#     subpath_to_create_val = os.path.join(validation_subpath, createPath)
+#     os.mkdir(subpath_to_create_train)
+#     os.mkdir(subpath_to_create_val)
 
-MODEL_LABELS = [0, 1, 2, 3, 5, 7, 8, 9, 10, 13]
-new_model_labels = []
-image_paths = dataset_classification.image_paths
+# MODEL_LABELS = [0, 1, 2, 3, 5, 7, 8, 9, 10, 13]
+# new_model_labels = []
+# image_paths = dataset_classification.image_paths
 
 # #for each class I will put 10 percent of the records of that class as validation
 # #this variable will hold the number of validation records for each class
@@ -147,9 +150,9 @@ batch_size = 64
 #batch_size_debug = 4
 
 
-train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-val_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
-test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=WORKERS)
+val_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=WORKERS)
+test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=WORKERS)
 
 #train_dataloader = DataLoader(tensor_resized_image_data_train, batch_size=batch_size_debug , shuffle = True)
 #val_dataloader = DataLoader(tensor_resized_image_data_val, batch_size=batch_size_debug, shuffle = True)
@@ -189,14 +192,14 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
     model.train()
     lowest_val_loss = float('inf')
     highest_f1_score = -0.1
-    for t in tqdm(range(epochs)):
+    for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train_loss_of_epoch = 0
         validation_loss_of_epoch = 0
         train_accuracy_of_epoch = 0
         validation_accuracy_of_epoch = 0
-
-        for batch, (X, y) in tqdm(enumerate(dataloader)):
+        
+        for X, y in tqdm(dataloader):
             X, y = X.to(device), y.to(device)
 
             pred = model(X)
@@ -221,7 +224,7 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
 
         predicted_labels_epoch = []
         actual_labels_epoch = []
-        for batch, (X, y) in tqdm(enumerate(val_dataloader)):
+        for batch, (X, y) in tqdm(val_dataloader):
             X, y = X.to(device), y.to(device)
             model.eval()
 

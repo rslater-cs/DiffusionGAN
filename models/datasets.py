@@ -82,13 +82,12 @@ class Classification(Dataset):
         return len(self.image_paths)
     
     def __getitem__(self, index):
-        # image = Image.open(self.image_paths.iloc[index])
-        # image = self.transform(image)
+        image = Image.open(self.image_paths.iloc[index])
+        image = self.transform(image)
 
         disease = self.disease_labels.iloc[index]
 
-        # return image, disease 
-        return disease    
+        return image, disease 
 
 class Metadata(Dataset):
     def __init__(self, root: Path, transform: transforms.Compose = random_transform) -> None:
