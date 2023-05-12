@@ -1,8 +1,8 @@
-%pip install diffusers
-%pip install transformers
-%pip install diffusers==0.12.1
-%pip install open_clip_torch
-%pip install datasets==2.10.1
+# %pip install diffusers
+# %pip install transformers
+# %pip install diffusers==0.12.1
+# %pip install open_clip_torch
+# %pip install datasets==2.10.1
 
 import os
 import csv
@@ -22,7 +22,12 @@ from transformers import CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, UNet2DConditionModel, PNDMScheduler, LMSDiscreteScheduler, DDPMScheduler
 from diffusers.optimization import get_scheduler, get_cosine_schedule_with_warmup
 
+from datasets import ImageTextPrompt
+from pathlib import Path
+
 import open_clip
+
+DATASET_PATH = Path('E:\Programming\Datasets\All_ISIC')
 
 dataset_dir = os.getcwd() + "/dataset"
 transformer_dir = cache_dir=os.getcwd() + "/transformer"
@@ -50,8 +55,9 @@ def decode_image(image):
     
     return pil_images[0]
 
-class DiffusionModel:
+class DiffusionModel(torch.nn.Module):
     def __init__(self, device):
+        super().__init__()
         self.device = device
         
         self.width = 512                         # default width of Stable Diffusion
@@ -199,7 +205,7 @@ class DiffusionModel:
         self.optimizer.zero_grad()
         
     def train_go_emotions(self, dataset, test_func):
-        train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=5, shuffle=True)
+        train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
         
         epochs = 3
         
@@ -219,97 +225,98 @@ class DiffusionModel:
             test_func()
 
 # Manual dataset if datasets module isn't able to download anything
-class Dataset:
-    def __init__(self, filename):
-        self.entries = []
+# class Dataset:
+#     def __init__(self, filename):
+#         self.entries = []
         
-        with open(filename, newline='') as csvfile:
-            csv_reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+#         with open(filename, newline='') as csvfile:
+#             csv_reader = csv.reader(csvfile, delimiter=',', quotechar='|')
             
-            csv_reader.__next__()
+#             csv_reader.__next__()
             
-            for _, file_name, dx, dx_type, age, sex, localization in csv_reader:
-                self.entries.append({"file_name": file_name, "dx": dx, "dx_type": dx_type, "age": age, "sex": sex, "localization": localization})
+#             for _, file_name, dx, dx_type, age, sex, localization in csv_reader:
+#                 self.entries.append({"file_name": file_name, "dx": dx, "dx_type": dx_type, "age": age, "sex": sex, "localization": localization})
         
-    def __len__(self):
-        return len(self.entries)
+#     def __len__(self):
+#         return len(self.entries)
     
-    def __getitem__(self, idx):
-        entry = self.entries[idx]
+#     def __getitem__(self, idx):
+#         entry = self.entries[idx]
         
-        try:
-            img = Image.open("download/HAM10000_images_part_1/" + entry["file_name"] + ".jpg")
-        except Exception as e:
-            img = Image.open("download/HAM10000_images_part_2/" + entry["file_name"] + ".jpg")
+#         try:
+#             img = Image.open("download/HAM10000_images_part_1/" + entry["file_name"] + ".jpg")
+#         except Exception as e:
+#             img = Image.open("download/HAM10000_images_part_2/" + entry["file_name"] + ".jpg")
             
-        convert_tensor = transforms.ToTensor()
+#         convert_tensor = transforms.ToTensor()
         
-        entry["image"] = convert_tensor(img)
+#         entry["image"] = convert_tensor(img)
         
-        if self.transform:
-            entry = self.transform(entry)
+#         if self.transform:
+#             entry = self.transform(entry)
         
-        return entry
+#         return entry
     
-    def set_transform(self, transform):
-        self.transform = transform
+#     def set_transform(self, transform):
+#         self.transform = transform
 
-if False:
-    dataset = Dataset("download/HAM10000_metadata.csv")
+# if False:
+#     dataset = Dataset("download/HAM10000_metadata.csv")
     
-    transform = transforms.Compose([
-        transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
-        transforms.CenterCrop(512), # Makes sense for these images in particular
-        transforms.RandomHorizontalFlip()
-    ])
+#     transform = transforms.Compose([
+#         transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
+#         transforms.CenterCrop(512), # Makes sense for these images in particular
+#         transforms.RandomHorizontalFlip()
+#     ])
 
-    def make_prompt(entry):
-        dx = entry["dx"]
-        dx_type = entry["dx_type"]
-        age = entry["age"]
-        sex = entry["sex"]
-        position = entry["localization"]
+#     def make_prompt(entry):
+#         dx = entry["dx"]
+#         dx_type = entry["dx_type"]
+#         age = entry["age"]
+#         sex = entry["sex"]
+#         position = entry["localization"]
 
-        return f"An image of {dx} skin cancer of type {dx_type} located at {position} on a {sex} of age {age}"
+#         return f"An image of {dx} skin cancer of type {dx_type} located at {position} on a {sex} of age {age}"
 
-    def transform_images(entry):
-        new_entry = {}
-        new_entry["image"] = transform(entry["image"])
-        new_entry["text"] = make_prompt(entry)
-        return new_entry
+#     def transform_images(entry):
+#         new_entry = {}
+#         new_entry["image"] = transform(entry["image"])
+#         new_entry["text"] = make_prompt(entry)
+#         return new_entry
 
-    dataset.set_transform(transform_images)
+#     dataset.set_transform(transform_images)
 
-else:
-    # datsets that automatically downloads datasets
-    dataset = datasets.load_dataset("marmal88/skin_cancer", cache_dir=dataset_dir).with_format("torch").cast_column("image", datasets.Image(decode=True))["train"]
+# else:
+#     # datsets that automatically downloads datasets
+#     dataset = datasets.load_dataset("marmal88/skin_cancer", cache_dir=dataset_dir).with_format("torch").cast_column("image", datasets.Image(decode=True))["train"]
 
-    transform = transforms.Compose([
-        transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
-        transforms.CenterCrop(512), # Makes sense for these images in particular
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor()
-    ])
+#     transform = transforms.Compose([
+#         transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
+#         transforms.CenterCrop(512), # Makes sense for these images in particular
+#         transforms.RandomHorizontalFlip(),
+#         transforms.ToTensor()
+#     ])
 
-    def transform_images(entries):
-        new_entries = {}
-        new_entries["image"] = [transform(entry.convert("RGB")) for entry in entries["image"]]
-        new_entries["text"] = []
+#     def transform_images(entries):
+#         new_entries = {}
+#         new_entries["image"] = [transform(entry.convert("RGB")) for entry in entries["image"]]
+#         new_entries["text"] = []
         
-        for i in range(len(entries["dx"])):
-            dx = entries["dx"][i]
-            dx_type = entries["dx_type"][i]
-            age = entries["age"][i]
-            sex = entries["sex"][i]
-            position = entries["localization"][i]
+#         for i in range(len(entries["dx"])):
+#             dx = entries["dx"][i]
+#             dx_type = entries["dx_type"][i]
+#             age = entries["age"][i]
+#             sex = entries["sex"][i]
+#             position = entries["localization"][i]
 
-            new_entries["text"].append(f"An image of {dx} skin cancer of type {dx_type} located at {position} on a {sex} of age {age}")
+#             new_entries["text"].append(f"An image of {dx} skin cancer of type {dx_type} located at {position} on a {sex} of age {age}")
             
-        return new_entries
+#         return new_entries
 
-    dataset.set_transform(transform_images)
+#     dataset.set_transform(transform_images)
 
 model = DiffusionModel(torch_device)
+dataset = ImageTextPrompt(root=DATASET_PATH)
 
 def test_func():
     images = []
@@ -327,3 +334,5 @@ def test_func():
 model.train_go_emotions(dataset, test_func)
 
 test_func()
+
+torch.save(model.load_state_dict(), './diffusion_params.pt')

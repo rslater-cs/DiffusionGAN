@@ -3,3 +3,5 @@ test.py
 *.csv
 lightning_logs
 .vs
+transformer
+*.pt

@@ -45,8 +45,8 @@ random_transform = transforms.Compose([
 
 resize_tranform = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Resize(224),
-    transforms.CenterCrop((224,224)),
+    transforms.Resize(512),
+    transforms.CenterCrop((512,512)),
     transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
 ])
     
@@ -210,7 +210,9 @@ class ImageTextPrompt(Metadata):
         if attn['1'] == 1:
             prompt += f'{self.sex_to_str[labels["sex"]]}'
 
-        return prompt, image
+        data = {'image':image, 'text':prompt}
+
+        return data
 
 
 

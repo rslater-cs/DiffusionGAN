@@ -146,7 +146,7 @@ test_dataset = Subset(dataset_classification, test)
 # plt.show()
 
 
-batch_size = 64
+batch_size = 32
 #batch_size_debug = 4
 
 
@@ -164,8 +164,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 model = models.resnet101(pretrained=True)
 
-for param in model.parameters():
-    param.requires_grad = False
+# for param in model.parameters():
+#     param.requires_grad = False
 
 f1_macro_score = []
 num_classes = 10
@@ -224,7 +224,7 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
 
         predicted_labels_epoch = []
         actual_labels_epoch = []
-        for batch, (X, y) in tqdm(val_dataloader):
+        for X, y in tqdm(val_dataloader):
             X, y = X.to(device), y.to(device)
             model.eval()
 
