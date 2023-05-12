@@ -64,12 +64,13 @@ metadata_path = base_path / 'metadata.csv'
 disease_path = base_path / 'diseases.csv'
 
 # Load data and drop the lesser represented diseases
-metadata = pd.read_csv(metadata_path)
 disease_data = pd.read_csv(disease_path)
-# disease_data = disease_data.drop('LK', axis=1)
-# disease_data = disease_data.drop('SL', axis=1)
-# disease_data = disease_data.drop('CAM', axis=1)
-# disease_data = disease_data.drop('AMP', axis=1)
+metadata = pd.read_csv(metadata_path)
+
+disease_data = disease_data.drop('LK', axis=1)
+disease_data = disease_data.drop('SL', axis=1)
+disease_data = disease_data.drop('CAM', axis=1)
+disease_data = disease_data.drop('AMP', axis=1)
 
 
 #initialise the labels and attention mask dictionaries
@@ -109,12 +110,15 @@ for disease_row, metadata_row in zip(disease_data.iterrows(), metadata.iterrows(
     encoded_data['anatom_site'].append(site)
     encoded_data['benign_malignant'].append(bm)
 
+for key in encoded_data.keys():
+    print(key, len(encoded_data[key]))
+
 # Save all data 
 encoded_data = pd.DataFrame(encoded_data)
 
 attention_data = pd.DataFrame(attention_data)
 
-samples = attention_data.sum(axis=1) > 0
+samples = attention_data[['0', '1', '2', '3', '4']].sum(axis=1) > 0
 encoded_data = encoded_data[samples]
 attention_data = attention_data[samples]
 

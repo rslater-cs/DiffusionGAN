@@ -94,8 +94,6 @@ class DiseaseTraining(pl.LightningModule):
 
         cm = self.confusion_matrix(self.predicted_labels, self.true_labels)
 
-        print(pr)
-
         self.log("test/accuracy", self.accuracy(self.predicted_labels, self.true_labels))
         pd.DataFrame({"test/precision":pr.tolist(),"test/recall":rc.tolist(),"test/f1":f1.tolist()}).to_csv(f'{self.logger.root_dir}/final_metrics.csv')
 

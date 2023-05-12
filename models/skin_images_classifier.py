@@ -1,7 +1,7 @@
 import csv
 import torchvision.transforms as transforms
 from PIL import Image
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 from pathlib import Path
 import pandas as pd
 import os
@@ -15,57 +15,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 import numpy as np
+from datasets import Classification, stratified_split_indexes
 #import seaborn as sns
-
-
-resize_transform = transforms.Compose([
-    transforms.Resize(224),
-    transforms.CenterCrop((224,224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
-])
-
-# Classification dataset and metdata dataset for classification and dgan systems
-class Classification(Dataset):
-    def __init__(self, transform: transforms.Compose = resize_transform) -> None:
-        super().__init__()
-        self.transform = transform
-
-        current_path = os.getcwd()
-        folder_path = os.path.join(current_path, 'models')
-        data_path = os.path.join(folder_path,'all_encoded.csv')
-        attn_path = os.path.join(folder_path,'all_attention.csv')
-
-        labels = pd.read_csv(data_path)
-        attn = pd.read_csv(attn_path)
-
-        image_names = labels['image']
-        disease_labels = labels['disease']
-        disease_attn = attn['0']
-
-        samples = disease_attn == 1
-
-        image_names = image_names[samples]
-
-        images_skin_path = os.path.join(current_path, 'All_ISIC')
-
-        for i in range(len(image_names)):
-            image_names.iloc[i] = os.path.join(images_skin_path, image_names.iloc[i])
-            #image_names.iloc[i] = Path(root / 'images' / image_names.iloc[i])
-        
-        self.image_paths = image_names
-        self.disease_labels = disease_labels[samples]
-
-    def __len__(self):
-        return len(self.image_paths)
-    
-    def __getitem__(self, index):
-        image = Image.open(self.image_paths[index])
-        image = self.transform(image)
-
-        disease = self.disease_labels.iloc[index]
-
-        return image, disease 
 
 
 dataset_classification = Classification()
@@ -116,22 +67,22 @@ MODEL_LABELS = [0, 1, 2, 3, 5, 7, 8, 9, 10, 13]
 new_model_labels = []
 image_paths = dataset_classification.image_paths
 
-#for each class I will put 10 percent of the records of that class as validation
-#this variable will hold the number of validation records for each class
-number_train = []
-for label_key, label_value in label_occurences.items():
-    try:
-        new_index_of_label = MODEL_LABELS.index(label_key)
-        number_train_records = int(label_value - (label_value * 0.10))
-        number_train.append(number_train_records)
-    except ValueError:
-        print(f"The image has the label {label_key} and will be dropped later.")
+# #for each class I will put 10 percent of the records of that class as validation
+# #this variable will hold the number of validation records for each class
+# number_train = []
+# for label_key, label_value in label_occurences.items():
+#     try:
+#         new_index_of_label = MODEL_LABELS.index(label_key)
+#         number_train_records = int(label_value - (label_value * 0.10))
+#         number_train.append(number_train_records)
+#     except ValueError:
+#         print(f"The image has the label {label_key} and will be dropped later.")
 
-number_of_records_as_train = dict()
+# number_of_records_as_train = dict()
 
-#zero the count for each label
-for i in range(10):
-    number_of_records_as_train[i] = 0
+# #zero the count for each label
+# for i in range(10):
+#     number_of_records_as_train[i] = 0
 
 """"
 for index, label in disease_labels.iteritems():
@@ -150,54 +101,55 @@ for index, label in disease_labels.iteritems():
         print(f"The image has the label {label} and will be dropped.")
 """
 
-#debug not right
-for index, label in disease_labels.iteritems():
-    try:
-        index_model_new_label = MODEL_LABELS.index(label)
-        number_of_records_as_train[index_model_new_label] += 1
-        new_model_labels.append(index_model_new_label)
-        currentImagePath = image_paths[index]
-        if (number_of_records_as_train[index_model_new_label] <= 16):
-            moveToTrain = os.path.join(train_subpath, str(index_model_new_label))
-            shutil.copy(currentImagePath, moveToTrain)
-        elif ((number_of_records_as_train[index_model_new_label] >= 17) and (number_of_records_as_train[index_model_new_label] <= 32)):
-            moveToVal = os.path.join(validation_subpath, str(index_model_new_label))
-            shutil.copy(currentImagePath, moveToVal)
-    except ValueError:
-        print(f"The image has the label {label} and will be dropped.")
+# for each class I will put 70 percent train, 10 percent validation and 20 percent test
+train, valid, test = stratified_split_indexes(dataset_classification.disease_labels, splits=[0.7, 0.1, 0.2])
+
+train_dataset = Subset(dataset_classification, train)
+valid_dataset = Subset(dataset_classification, valid)
+test_dataset = Subset(dataset_classification, test)
+
+
+# #debug not right
+# for index, label in disease_labels.iteritems():
+#     try:
+#         index_model_new_label = MODEL_LABELS.index(label)
+#         number_of_records_as_train[index_model_new_label] += 1
+#         new_model_labels.append(index_model_new_label)
+#         currentImagePath = image_paths[index]
+#         if (number_of_records_as_train[index_model_new_label] <= 16):
+#             moveToTrain = os.path.join(train_subpath, str(index_model_new_label))
+#             shutil.copy(currentImagePath, moveToTrain)
+#         elif ((number_of_records_as_train[index_model_new_label] >= 17) and (number_of_records_as_train[index_model_new_label] <= 32)):
+#             moveToVal = os.path.join(validation_subpath, str(index_model_new_label))
+#             shutil.copy(currentImagePath, moveToVal)
+#     except ValueError:
+#         print(f"The image has the label {label} and will be dropped.")
 
 
 
-
-label_occurences_new = dict()
-
-#zero the count for each label
-for i in range(10):
-    label_occurences_new[i] = 0
-
-#get the number of images for each label
-for label in new_model_labels:
-    label_occurences_new[label] += 1
-
-plt.figure()
-plt.bar(x=list(map(str, label_occurences_new.keys())), height=list(label_occurences_new.values()))
-plt.show()
-
-#set the new labels to the Classification object
-dataset_classification.disease_labels = new_model_labels
-
-
-
-tensor_resized_image_data_train = datasets.ImageFolder(root=train_subpath, transform = resize_transform)
-tensor_resized_image_data_val = datasets.ImageFolder(root=validation_subpath, transform = resize_transform)
+## This code segment has been dropped as classification class has dropped rows as default
+# label_occurences_new = dict()
+#
+# #zero the count for each label
+# for i in range(10):
+#     label_occurences_new[i] = 0
+#
+# #get the number of images for each label
+# for label in new_model_labels:
+#     label_occurences_new[label] += 1
+#
+# plt.figure()
+# plt.bar(x=list(map(str, label_occurences_new.keys())), height=list(label_occurences_new.values()))
+# plt.show()
 
 
 batch_size = 64
 #batch_size_debug = 4
 
 
-train_dataloader = DataLoader(tensor_resized_image_data_train, batch_size=batch_size , shuffle = True)
-val_dataloader = DataLoader(tensor_resized_image_data_val, batch_size=batch_size, shuffle = True)
+train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 #train_dataloader = DataLoader(tensor_resized_image_data_train, batch_size=batch_size_debug , shuffle = True)
 #val_dataloader = DataLoader(tensor_resized_image_data_val, batch_size=batch_size_debug, shuffle = True)

@@ -1,5 +1,5 @@
 from models.disease_classifier import DiseaseTraining
-from utils.datasets import Classification
+from models.datasets import Classification
 
 import torch
 torch.set_float32_matmul_precision('high')

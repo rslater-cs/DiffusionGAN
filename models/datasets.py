@@ -7,9 +7,33 @@ from PIL import Image
 import pandas as pd
 
 from pathlib import Path
+from typing import List
 
 DISEASES = ['MEL', 'NV', 'BCC', 'AK', 'SL', 'SK', 'LK', 'DF', 'VASC', 'SCC', 'LN', 'CAM', 'AMP', 'UNK']
 METADATA = ['sex', 'age', 'anatom_site']
+
+def stratified_split_indexes(labels: pd.DataFrame, splits: List[float]):
+    labels = labels.reset_index(drop=True)
+    splits = torch.tensor(splits).cumsum(dim=0)
+    nclasses = labels.nunique()
+
+    classes = {}
+    class_indexes = {}
+    for i in range(nclasses):
+        classes[i] = list(labels.index[labels==i])
+        class_indexes[i] = [0]
+        for j in range(len(splits)):
+            class_indexes[i].append(int((splits[j]*len(classes[i])).item()))
+
+    split_indexes = [[] for i in range(len(splits))]
+    for key in class_indexes.keys():
+        for i in range(len(split_indexes)):
+            start = class_indexes[key][i]
+            end = class_indexes[key][i+1]
+            items = classes[key][start:end]
+            split_indexes[i].extend(items)
+
+    return tuple(split_indexes)
     
 random_transform = transforms.Compose([
     transforms.Resize(224),
@@ -58,12 +82,13 @@ class Classification(Dataset):
         return len(self.image_paths)
     
     def __getitem__(self, index):
-        image = Image.open(self.image_paths.iloc[index])
-        image = self.transform(image)
+        # image = Image.open(self.image_paths.iloc[index])
+        # image = self.transform(image)
 
         disease = self.disease_labels.iloc[index]
 
-        return image, disease     
+        # return image, disease 
+        return disease    
 
 class Metadata(Dataset):
     def __init__(self, root: Path, transform: transforms.Compose = random_transform) -> None:
@@ -110,14 +135,14 @@ class ImageTextPrompt(Metadata):
     disease_to_str = {
         0:'melanoma',
         1:'nevus',
-        2:'??',
-        3:'??',
+        2:'basal cell carcinoma',
+        3:'actinic keratosis',
         4:'solar lentigo',
         5:'seborrheic keratosis',
         6:'lichenoid keratosis',
-        7:'??',
-        8:'??',
-        9:'??',
+        7:'dermatofibroma',
+        8:'vascular lesion',
+        9:'squamous cell carcinoma',
         10:'lentigo NOS',
         11:'cafe-au-lait macule',
         12:'atypical melanocytic proliferation',
