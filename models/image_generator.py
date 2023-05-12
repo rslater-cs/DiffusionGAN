@@ -1,3 +1,9 @@
+%pip install diffusers
+%pip install transformers
+%pip install diffusers==0.12.1
+%pip install open_clip_torch
+%pip install datasets==2.10.1
+
 import os
 import csv
 import numpy
@@ -23,6 +29,8 @@ transformer_dir = cache_dir=os.getcwd() + "/transformer"
 
 manual_datset = False
 
+torch_device = "cuda" if torch.cuda.is_available() else "cpu"
+
 def image_grid(imgs, rows, cols):
     assert len(imgs) == rows*cols
 
@@ -42,27 +50,25 @@ def decode_image(image):
     
     return pil_images[0]
 
-torch_device = "cuda" if torch.cuda.is_available() else "cpu"
-
 class DiffusionModel:
-    def __init__(self, device, timesteps):
+    def __init__(self, device):
         self.device = device
         
         self.width = 512                         # default width of Stable Diffusion
         self.height = 512                        # default height of Stable Diffusion
-        
+
         # 1. Load the autoencoder model which will be used to decode the latents into image space. 
         self.vae = AutoencoderKL.from_pretrained("stabilityai/stable-diffusion-2-1", cache_dir=transformer_dir, subfolder="vae", sample_size=1).to(self.device)
 
         self.tokenizer = CLIPTokenizer.from_pretrained("stabilityai/stable-diffusion-2-1", cache_dir=transformer_dir, subfolder="tokenizer")
         self.text_encoder = CLIPTextModel.from_pretrained("stabilityai/stable-diffusion-2-1", cache_dir=transformer_dir, subfolder="text_encoder")
-        
+
         # 3. The UNet model for generating the latents.
         self.unet = UNet2DConditionModel.from_pretrained("stabilityai/stable-diffusion-2-1", cache_dir=transformer_dir, subfolder="unet").to(self.device)
-        
+            
         # 4. The scheduler for managing the denoising amount
         self.scheduler = LMSDiscreteScheduler.from_pretrained("stabilityai/stable-diffusion-2-1", cache_dir=transformer_dir, subfolder="scheduler")
-        self.scheduler.set_timesteps(timesteps)
+        self.scheduler.set_timesteps(50)
         
         self.generator = torch.manual_seed(1)
         
@@ -72,7 +78,7 @@ class DiffusionModel:
         
         self.optimizer = torch.optim.AdamW(
             self.unet.parameters(),
-            lr=1e-5,
+            lr=5e-5,
             betas=(0.95, 0.999),
             weight_decay=1e-6,
             eps=1e-08,
@@ -161,22 +167,21 @@ class DiffusionModel:
     def train_step(self, batch, lr_scheduler):
         images = batch["image"].to(self.device)
         
-        # Convert image to latents
         with torch.no_grad():
+            # Convert image to latents
             image_latents = self.vae.encode(images.float().cuda()).latent_dist.sample()
         
-        # Generate image noise
-        noise = torch.randn(image_latents.shape).to(self.device)
+            # Generate image noise
+            noise = torch.randn(image_latents.shape).to(self.device)
+
+            # Generate random timesteps
+            bsz = image_latents.shape[0]
+            timesteps = torch.randint(0, self.noise_scheduler.config.num_train_timesteps, (bsz,), device=self.device).long()
         
-        # Generate random timesteps
-        bsz = image_latents.shape[0]
-        timesteps = torch.randint(0, self.noise_scheduler.config.num_train_timesteps, (bsz,), device=self.device).long()
-        
-        # Generate noisy versions of images based on timesteps
-        with torch.no_grad():
+            # Generate noisy versions of images based on timesteps
             noise_latents = self.noise_scheduler.add_noise(image_latents, noise, timesteps)
         
-        text_embeddings = self.prompts_to_embeddings(batch["text"])
+            text_embeddings = self.prompts_to_embeddings(batch["text"])
         
         predicted_latents = self.unet(noise_latents, timesteps, encoder_hidden_states=text_embeddings.last_hidden_state.cuda()).sample
         
@@ -193,14 +198,15 @@ class DiffusionModel:
         lr_scheduler.step()
         self.optimizer.zero_grad()
         
-    def train_go_emotions(self, dataset):
-        train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=10, shuffle=True)
+    def train_go_emotions(self, dataset, test_func):
+        train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=5, shuffle=True)
         
-        epochs = 1
+        epochs = 3
         
-        lr_scheduler = get_cosine_schedule_with_warmup(
+        lr_scheduler = get_scheduler(
+            "linear",
             optimizer=self.optimizer,
-            num_warmup_steps=0,
+            num_warmup_steps=500,
             num_training_steps=(len(train_dataloader) * epochs),
         )
         
@@ -209,6 +215,8 @@ class DiffusionModel:
                 # Change the image to be (3, width, height) format
                 #image = entry["image"].permute(2, 0, 1)
                 self.train_step(batch, lr_scheduler)
+                
+            test_func()
 
 # Manual dataset if datasets module isn't able to download anything
 class Dataset:
@@ -246,12 +254,12 @@ class Dataset:
     def set_transform(self, transform):
         self.transform = transform
 
-if manual_dataset:
+if False:
     dataset = Dataset("download/HAM10000_metadata.csv")
     
     transform = transforms.Compose([
-        transforms.Resize(224, interpolation=transforms.InterpolationMode.BILINEAR),
-        transforms.CenterCrop(224), # Makes sense for these images in particular
+        transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
+        transforms.CenterCrop(512), # Makes sense for these images in particular
         transforms.RandomHorizontalFlip()
     ])
 
@@ -277,8 +285,8 @@ else:
     dataset = datasets.load_dataset("marmal88/skin_cancer", cache_dir=dataset_dir).with_format("torch").cast_column("image", datasets.Image(decode=True))["train"]
 
     transform = transforms.Compose([
-        transforms.Resize(224, interpolation=transforms.InterpolationMode.BILINEAR),
-        transforms.CenterCrop(224), # Makes sense for these images in particular
+        transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
+        transforms.CenterCrop(512), # Makes sense for these images in particular
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor()
     ])
@@ -300,22 +308,22 @@ else:
         return new_entries
 
     dataset.set_transform(transform_images)
-    
-    print(dataset[0:3])
 
+model = DiffusionModel(torch_device)
 
-model = DiffusionModel(torch_device, 50)
+def test_func():
+    images = []
+    for i in range(0, 4):
+        image = model.generate("actinic_keratoses skin cancer of type histo located on the foot of a male of age 50.0")
 
-model.train_go_emotions(dataset)
+        #image = model.generate("skin cancer")
 
-images = []
-for i in range(0, 4):
-    image = model.generate("actinic_keratoses skin cancer of type histo located on the foot of a male of age 50.0")
-    
-    #image = model.generate("skin cancer")
-    
-    #image = model.generate("an image of a dog wearing a hat")
-    
-    images.append(image)
-    
-image_grid(images, 2, 2)
+        #image = model.generate("an image of a dog wearing a hat")
+
+        images.append(image)
+
+    image_grid(images, 2, 2).show()
+
+model.train_go_emotions(dataset, test_func)
+
+test_func()
