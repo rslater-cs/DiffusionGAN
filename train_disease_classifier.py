@@ -36,7 +36,7 @@ if __name__ == '__main__':
     validloader = DataLoader(validdata, batch_size=16, shuffle=False, num_workers=12)
     testloader = DataLoader(testdata, batch_size=16, shuffle=False, num_workers=12)
 
-    classifier = DiseaseTraining(lr=args.learning_rate)
+    classifier = DiseaseTraining(epochs=args.epochs, lr=args.learning_rate)
 
     trainer = pl.Trainer(max_epochs=args.epochs)
     trainer.fit(classifier, train_dataloaders=trainloader, val_dataloaders=validloader)
