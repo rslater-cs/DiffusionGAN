@@ -14,6 +14,8 @@ METADATA = ['sex', 'age', 'anatom_site']
 
 def stratified_split_indexes(labels: pd.DataFrame, splits: List[float]):
     labels = labels.reset_index(drop=True)
+    labels = labels.sample(frac=1)
+    print(labels)
     splits = torch.tensor(splits).cumsum(dim=0)
     nclasses = labels.nunique()
 

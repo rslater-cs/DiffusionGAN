@@ -96,6 +96,9 @@ class DiseaseTraining(pl.LightningModule):
 
         self.number_train_records += len(disease)
 
+        self.log("train/accuracy", self.train_accuracy_of_epoch/self.number_train_records)
+        self.log("train/loss", self.train_loss_of_epoch/self.length_of_train_dataloader)
+
         self.trained_at_least_one_epoch = True
 
         return loss
@@ -130,6 +133,9 @@ class DiseaseTraining(pl.LightningModule):
 
             self.number_val_records += len(disease)
 
+            self.log("valid/accuracy", self.validation_accuracy_of_epoch/self.number_val_records)
+            self.log("valid/loss", self.validation_loss_of_epoch/self.length_of_val_dataloader)
+
             self.val_predicted_labels_epoch = np.concatenate((self.val_predicted_labels_epoch, predicted.cpu().numpy())).astype(int)
             self.val_actual_labels_epoch = np.concatenate((self.val_actual_labels_epoch, disease.cpu().numpy())).astype(int)
 
@@ -149,13 +155,13 @@ class DiseaseTraining(pl.LightningModule):
 
             if (average_validation_loss_of_epoch < self.lowest_val_loss):
                 self.lowest_val_loss = average_validation_loss_of_epoch
-                self.best_model_lowest_val_loss = self.val_epoch
+                self.best_model_lowest_val_loss = self.val_epoch 
+                torch.save(self.model.state_dict(), f"weights_epoch{self.val_epoch}.pt")
 
             if (f1_score_epoch > self.highest_f1_score):
                 self.highest_f1_score = f1_score_epoch
                 self.best_model_highest_f1_score = self.val_epoch
-
-            torch.save(self.model.state_dict(), f"weights_epoch{self.val_epoch}.pt")
+                torch.save(self.model.state_dict(), f"weights_epoch{self.val_epoch}.pt")
 
 
     #def test_step(self, batch, batch_idx) -> STEP_OUTPU None:

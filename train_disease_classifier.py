@@ -35,9 +35,9 @@ if __name__ == '__main__':
     validdata = Subset(dataset, valid)
     testdata = Subset(dataset, test)
 
-    trainloader = DataLoader(traindata, batch_size=16, shuffle=True, num_workers=12)
-    validloader = DataLoader(validdata, batch_size=16, shuffle=False, num_workers=12)
-    testloader = DataLoader(testdata, batch_size=16, shuffle=False, num_workers=12)
+    trainloader = DataLoader(traindata, batch_size=32, shuffle=True, num_workers=0)
+    validloader = DataLoader(validdata, batch_size=32, shuffle=False, num_workers=0)
+    testloader = DataLoader(testdata, batch_size=32, shuffle=False, num_workers=0)
 
     classifier = DiseaseTraining(epochs=args.epochs, lr=args.learning_rate)
 
