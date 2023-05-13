@@ -5,3 +5,5 @@ lightning_logs
 .vs
 transformer
 *.pt
+models/test_classifier.py
+train_disease_classifier_test.py
