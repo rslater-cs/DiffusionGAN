@@ -1,10 +1,10 @@
 from models.disease_classifier import DiseaseTraining
-from models.datasets import Classification
+from models.datasets import Classification, stratified_split_indexes
 
 import torch
 torch.set_float32_matmul_precision('high')
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 import lightning as pl
 import matplotlib.pyplot as plt
@@ -12,7 +12,6 @@ import pandas as pd
 from argparse import ArgumentParser
 from pathlib import Path
 import os
-from torch.utils.data import random_split
 
 
 if __name__ == '__main__':
@@ -30,7 +29,11 @@ if __name__ == '__main__':
 
     dataset = Classification(root=Path(args.path))
 
-    traindata, validdata, testdata = random_split(dataset, [0.7, 0.1, 0.2])
+    train, valid, test = stratified_split_indexes(dataset.disease_labels, [0.7, 0.1, 0.2])
+
+    traindata = Subset(dataset, train)
+    validdata = Subset(dataset, valid)
+    testdata = Subset(dataset, test)
 
     trainloader = DataLoader(traindata, batch_size=16, shuffle=True, num_workers=12)
     validloader = DataLoader(validdata, batch_size=16, shuffle=False, num_workers=12)

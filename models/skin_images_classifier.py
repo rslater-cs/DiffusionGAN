@@ -171,7 +171,7 @@ f1_macro_score = []
 num_classes = 10
 model.fc = nn.Linear(model.fc.in_features, num_classes)
 loss = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.fc.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 train_loss = []
@@ -200,12 +200,13 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
         validation_accuracy_of_epoch = 0
         
         for X, y in tqdm(dataloader):
+            optimizer.zero_grad()
+
             X, y = X.to(device), y.to(device)
 
             pred = model(X)
             loss = loss_fn(pred, y)
 
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -217,8 +218,8 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
             #loss, current = loss.item(), batch * len(X)
             #print(f"train_loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
             
-        train_loss_of_epoch = train_loss_of_epoch / len(dataloader)
-        train_accuracy_of_epoch = train_accuracy_of_epoch / len(dataloader)
+        train_loss_of_epoch = train_loss_of_epoch / len(train_dataset)
+        train_accuracy_of_epoch = train_accuracy_of_epoch / len(train_dataset)
         train_loss.append(train_loss_of_epoch)
         train_accuracy.append(train_accuracy_of_epoch)
 
@@ -249,8 +250,8 @@ def train(dataloader, val_dataloader, model, loss_fn, optimizer):
         f1_score_epoch = f1_score(actual_labels_epoch, predicted_labels_epoch, average='macro')
         f1_macro_score.append(f1_score_epoch)
 
-        validation_loss_of_epoch = validation_loss_of_epoch / len(val_dataloader)
-        validation_accuracy_of_epoch = validation_accuracy_of_epoch / len(val_dataloader)
+        validation_loss_of_epoch = validation_loss_of_epoch / len(valid_dataset)
+        validation_accuracy_of_epoch = validation_accuracy_of_epoch / len(valid_dataset)
         validation_loss.append(validation_loss_of_epoch)
         validatation_accuracy.append(validation_accuracy_of_epoch)
 
