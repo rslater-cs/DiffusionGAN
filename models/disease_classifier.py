@@ -96,8 +96,8 @@ class DiseaseTraining(pl.LightningModule):
 
         self.number_train_records += len(disease)
 
-        self.log("train/accuracy", self.train_accuracy_of_epoch/self.number_train_records)
-        self.log("train/loss", self.train_loss_of_epoch/self.length_of_train_dataloader)
+        self.log("train/accuracy", (predicted == disease).sum().item()/len(disease), on_step=False, on_epoch=True)
+        self.log("train/loss", loss.item(), on_step=False, on_epoch=True)
 
         self.trained_at_least_one_epoch = True
 
@@ -133,8 +133,8 @@ class DiseaseTraining(pl.LightningModule):
 
             self.number_val_records += len(disease)
 
-            self.log("valid/accuracy", self.validation_accuracy_of_epoch/self.number_val_records)
-            self.log("valid/loss", self.validation_loss_of_epoch/self.length_of_val_dataloader)
+            self.log("valid/accuracy", (predicted == disease).sum().item()/len(disease))
+            self.log("valid/loss", loss.item())
 
             self.val_predicted_labels_epoch = np.concatenate((self.val_predicted_labels_epoch, predicted.cpu().numpy())).astype(int)
             self.val_actual_labels_epoch = np.concatenate((self.val_actual_labels_epoch, disease.cpu().numpy())).astype(int)
@@ -189,6 +189,8 @@ class DiseaseTraining(pl.LightningModule):
         self.predicted_labels_highest_f1_torch = torch.tensor(self.predicted_labels_highest_f1).to(self.device)
         self.predicted_labels_lowest_loss_torch = torch.tensor(self.predicted_labels_lowest_loss).to(self.device)
         self.true_labels_torch = torch.tensor(self.true_labels).to(self.device)
+
+        self.log("test/accuracy", (pred_highest_f1 == disease).sum().item()/len(disease))
 
     
 
@@ -256,7 +258,7 @@ class DiseaseTraining(pl.LightningModule):
     
 
     #plot the confusion matrix
-    def plot_confusion_matrix(actual_labels, predicted_labels):
+    def plot_confusion_matrix(self, actual_labels, predicted_labels):
         LABELS = ['MEL', 'NV', 'BCC', 'SL', 'LK', 'DF', 'VASC', 'SCC', 'AMP', 'UNK']
         #skleaarn y-true first then y-pred after
         confusion_m = confusion_matrix(actual_labels, predicted_labels)
@@ -268,3 +270,4 @@ class DiseaseTraining(pl.LightningModule):
         plt.yticks(fontsize=12)
         plt.xticks(rotation=90)
         plt.yticks(rotation=0)
+        plt.show()

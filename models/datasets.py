@@ -6,6 +6,10 @@ from PIL import Image
 
 import pandas as pd
 
+import os
+
+import random
+
 from pathlib import Path
 from typing import List
 
@@ -15,7 +19,6 @@ METADATA = ['sex', 'age', 'anatom_site']
 def stratified_split_indexes(labels: pd.DataFrame, splits: List[float]):
     labels = labels.reset_index(drop=True)
     labels = labels.sample(frac=1)
-    print(labels)
     splits = torch.tensor(splits).cumsum(dim=0)
     nclasses = labels.nunique()
 
@@ -133,21 +136,29 @@ class Metadata(Dataset):
                 torch.tensor(self.attn.iloc[index].values).type(torch.FloatTensor))
     
 class ImageTextPrompt(Metadata):
+    # disease_to_str = {
+    #     0:'melanoma',
+    #     1:'nevus',
+    #     2:'basal cell carcinoma',
+    #     3:'actinic keratosis',
+    #     4:'seborrheic keratosis',
+    #     5:'dermatofibroma',
+    #     6:'vascular lesion',
+    #     7:'squamous cell carcinoma',
+    #     8:'lentigo NOS',
+    #     9:'unknown'
+    # }
     disease_to_str = {
-        0:'melanoma',
-        1:'nevus',
-        2:'basal cell carcinoma',
-        3:'actinic keratosis',
-        4:'solar lentigo',
-        5:'seborrheic keratosis',
-        6:'lichenoid keratosis',
-        7:'dermatofibroma',
-        8:'vascular lesion',
-        9:'squamous cell carcinoma',
-        10:'lentigo NOS',
-        11:'cafe-au-lait macule',
-        12:'atypical melanocytic proliferation',
-        13:'unknown'
+        0:'type A',
+        1:'type B',
+        2:'type C',
+        3:'type D',
+        4:'type E',
+        5:'type F',
+        6:'type G',
+        7:'type H',
+        8:'type I',
+        9:'type J'
     }
     sex_to_str = {
         0:'male',
@@ -215,6 +226,130 @@ class ImageTextPrompt(Metadata):
         data = {'image':image, 'text':prompt}
 
         return data
+    
+class TextPrompt(Dataset):
+    disease_to_str = {
+        0:'type A',
+        1:'type B',
+        2:'type C',
+        3:'type D',
+        4:'type E',
+        5:'type F',
+        6:'type G',
+        7:'type H',
+        8:'type I',
+        9:'type J'
+    }
+    sex_to_str = {
+        0:'male',
+        1:'female'
+    }
+    age_to_str = lambda s, x: str(int(x*5))
+    site_to_str = {
+        0:'head/neck',
+        1:'upper extremity',
+        2:'lower extremity',
+        3:'torso',
+        4:'palms/soles',
+        5:'oral/genital',
+        6:'anterior torso',
+        7:'posterior torso',
+        8:'lateral torso',
+    }
+    bm_to_str = {
+        0:'benign',
+        1:'malignant'
+    }
+    def __init__(self, root: Path, num_images: int) -> None:
+        super().__init__()
+
+        data_path = root / 'all_encoded.csv'
+        attn_path = root / 'all_attention.csv'
+
+        labels = pd.read_csv(data_path)
+        labels = labels['disease']
+        attn = pd.read_csv(attn_path)
+        attn = attn.drop('image', axis=1)
+
+        if not os.path.exists(str(root) + '/fake_images'):
+            os.mkdir(str(root) + '/fake_images')
+
+        data = {'image_dir':[], 'text':[]}
+        new_labels = {'image':[],'sex':[],'age':[],'anatom_site':[],'benign_malignant':[],'disease':[]}
+        for i in range(num_images):
+            data['image_dir'].append(str(root / 'fake_images' / f'ISIC_Fake_{i}.jpg'))
+            new_labels['image'].append(f'ISIC_Fake_{i}.jpg')
+
+        distribution = labels.value_counts().sort_index()
+        mean = distribution.mean()
+        distribution = mean-distribution
+        distribution[distribution < 0] = 0
+        
+        tot = distribution.sum()
+        distribution = distribution / tot
+
+        print(distribution)
+
+        distribution = distribution * num_images
+        distribution = distribution.round()
+        distribution = distribution.astype(int)
+
+        if distribution.sum() > num_images:
+            distribution.iloc[2] += num_images - distribution.sum()
+        
+        distribution = list(distribution.values)
+
+        for i, num_samples in enumerate(distribution):
+            for j in range(num_samples):
+                new_labels['disease'].append(i)
+
+                disease = self.disease_to_str[i]
+
+                age = random.randint(0, 18)
+                new_labels['age'].append(age)
+
+                age = self.age_to_str(age)
+
+                sex = random.randint(0, 1)
+                new_labels['sex'].append(sex)
+
+                sex = self.sex_to_str[sex]
+
+                site = random.randint(0, 8)
+                new_labels['anatom_site'].append(site)
+
+                site = self.site_to_str[site]
+
+                bm = random.randint(0, 1)
+                new_labels['benign_malignant'].append(bm)
+
+                bm = self.bm_to_str[bm]
+
+                prompt = f'An image of {bm} {disease} on the {site} of a {age} year old {sex}'
+                data['text'].append(prompt)
+
+        self.data = data
+
+        frame = pd.DataFrame(new_labels)
+        frame.to_csv(root / 'fake_labels.csv')
+
+    def __len__(self):
+        return len(self.data['text'])
+    
+    def __getitem__(self, index):
+        return self.data['text'][index], self.data['image_dir'][index]
+
+        
+
+
+        
+        
+
+        
+
+        
+
+
 
 
 
