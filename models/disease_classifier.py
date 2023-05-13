@@ -169,7 +169,6 @@ class DiseaseTraining(pl.LightningModule):
 
         image, disease = batch
 
-        print(f"Best model on lowest val score was on epoch {self.best_model_lowest_val_loss}. If you want to load the weights of this model you should load the the weights_epoch{self.best_model_lowest_val_loss} pt file")
         
         #Load the model of the epoch that has the lowest validation loss at the end of the epoch
         model_weights_lowest_val_loss = f"weights_epoch{self.best_model_lowest_val_loss}.pt"
@@ -177,7 +176,6 @@ class DiseaseTraining(pl.LightningModule):
         pred_lowest_val_loss = self.model(image)
         _, predicted_lowest_val_loss = torch.max(pred_lowest_val_loss.data, 1)
 
-        print(f"Best model on highest f1 score was on epoch {self.best_model_highest_f1_score}. If you want to load the weights of this model you should load the the weights_epoch{self.best_model_highest_f1_score} pt file")
         #Load the model of the epoch that has the highest f1 score at the end of the epoch
         model_weights_highest_f1_score = f"weights_epoch{self.best_model_highest_f1_score}.pt"
         self.model.load_state_dict(torch.load(model_weights_highest_f1_score))
@@ -195,6 +193,9 @@ class DiseaseTraining(pl.LightningModule):
     
 
     def on_test_epoch_end(self):
+
+        print(f"Best model on lowest val score was on epoch {self.best_model_lowest_val_loss}. If you want to load the weights of this model you should load the the weights_epoch{self.best_model_lowest_val_loss} pt file")
+        print(f"Best model on highest f1 score was on epoch {self.best_model_highest_f1_score}. If you want to load the weights of this model you should load the the weights_epoch{self.best_model_highest_f1_score} pt file")
 
         #log the metrics for lowest val score model
         self.log_save_metrics(self.predicted_labels_lowest_loss_torch, self.true_labels_torch, "lowest_val_loss")
