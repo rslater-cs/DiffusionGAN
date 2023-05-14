@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     save_dir = Path(args.save_dir)
 
-    dataset = Classification(root=Path(args.path))
+    dataset = Classification(root=Path(args.path)/'real')
 
     train, valid, test = stratified_split_indexes(dataset.disease_labels, [0.7, 0.1, 0.2])
 

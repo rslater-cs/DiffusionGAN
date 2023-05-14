@@ -1,5 +1,5 @@
 from models.disease_classifier import DiseaseTraining
-from models.datasets import Classification, stratified_split_indexes
+from models.datasets import Classification, ClassificationFake, stratified_split_indexes
 
 import torch
 torch.set_float32_matmul_precision('high')
@@ -29,13 +29,25 @@ if __name__ == '__main__':
 
     dataset = Classification(root=Path(args.path)/'real')
 
+    real_count = dataset.disease_labels.value_counts().sort_index()
+
     train, valid, test = stratified_split_indexes(dataset.disease_labels, [0.7, 0.1, 0.2])
 
     traindata = Subset(dataset, train)
     validdata = Subset(dataset, valid)
     testdata = Subset(dataset, test)
 
-    fakedata = Classification(root=Path(args.path)/'fake')
+    fakedata = ClassificationFake(root=Path(args.path)/'fake')
+
+    fake_count = fakedata.disease_labels.value_counts().sort_index()
+
+    total_count = fake_count + real_count
+    total_count = total_count.fillna(0)
+    total_count[total_count == 0] = real_count[total_count==0]
+    total_count = total_count.astype(int)
+
+    plt.bar(list(range(10)), list(total_count.values))
+    plt.show()
 
     traindata = ConcatDataset([traindata, fakedata])
 

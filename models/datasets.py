@@ -93,6 +93,40 @@ class Classification(Dataset):
         disease = self.disease_labels.iloc[index]
 
         return image, disease 
+    
+class ClassificationFake(Dataset):
+    def __init__(self, root: Path, transform: transforms.Compose = random_transform) -> None:
+        super().__init__()
+        self.transform = transform
+
+        data_path = root / 'fake_labels.csv'
+
+        labels = pd.read_csv(data_path)
+
+        # We must remove all rows where a disease label does not exist
+        # We use the attention mask for this function
+        disease_labels = labels.iloc[:-8]
+        image_names = disease_labels['image']
+        self.disease_labels = disease_labels['disease']
+
+        for i in range(len(image_names)):
+            image_names.iloc[i] = Path(root / 'fake_images' / image_names.iloc[i])
+        
+        self.image_paths = image_names
+
+    def __len__(self):
+        return len(self.image_paths)
+    
+    def __getitem__(self, index):
+        image = Image.open(self.image_paths.iloc[index])
+        image = self.transform(image)
+
+        disease = self.disease_labels.iloc[index]
+
+        # print(disease)
+        # print(image)
+
+        return image, disease 
 
 class Metadata(Dataset):
     def __init__(self, root: Path, transform: transforms.Compose = random_transform) -> None:

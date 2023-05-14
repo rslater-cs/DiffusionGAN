@@ -180,7 +180,10 @@ class DiseaseTraining(pl.LightningModule):
         model_weights_highest_f1_score = f"weights_epoch{self.best_model_highest_f1_score}.pt"
         self.model.load_state_dict(torch.load(model_weights_highest_f1_score))
         pred_highest_f1 = self.model(image)
+
         _, predicted_highest_f1 = torch.max(pred_highest_f1.data, 1)
+        
+        self.log("test/accuracy", (predicted_highest_f1 == disease).sum().item()/len(disease))
 
         self.true_labels.extend(disease.tolist())
         self.predicted_labels_lowest_loss.extend(predicted_lowest_val_loss.tolist())
@@ -189,8 +192,6 @@ class DiseaseTraining(pl.LightningModule):
         self.predicted_labels_highest_f1_torch = torch.tensor(self.predicted_labels_highest_f1).to(self.device)
         self.predicted_labels_lowest_loss_torch = torch.tensor(self.predicted_labels_lowest_loss).to(self.device)
         self.true_labels_torch = torch.tensor(self.true_labels).to(self.device)
-
-        self.log("test/accuracy", (pred_highest_f1 == disease).sum().item()/len(disease))
 
     
 
